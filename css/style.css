@@ -272,6 +272,27 @@ h1, h2, h3, p { margin: 0; }
 }
 .board.no-labels .pad-label { display: none; }
 
+/* lege plek in het rooster: neemt altijd ruimte in, maar is buiten de
+   bewerkmodus onzichtbaar */
+.pad-slot { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.pad-slot-box { width: 100%; aspect-ratio: 1; border-radius: 22px; }
+
+.board.is-editing .pad-slot-box {
+  border: 2px dashed rgba(255, 255, 255, .2);
+  background: rgba(255, 255, 255, .022);
+}
+
+/* waar je nu zou loslaten */
+.pad-slot.is-drop-target .pad-slot-box {
+  border-color: var(--neon-b); border-style: solid;
+  background: rgba(var(--neon-b-rgb), .15);
+  box-shadow: 0 0 20px rgba(var(--neon-b-rgb), .5), inset 0 0 24px rgba(var(--neon-b-rgb), .2);
+}
+.pad-wrap.is-drop-target .pad {
+  border-style: solid;
+  box-shadow: 0 0 0 3px var(--neon-b), 0 0 24px rgba(var(--neon-b-rgb), .6);
+}
+
 /* ---------- bewerkmodus ------------------------------------------ */
 .board.is-editing .pad { touch-action: none; border-style: dashed; }
 .board.is-editing .pad-wrap { animation: wiggle 2.6s ease-in-out infinite; }

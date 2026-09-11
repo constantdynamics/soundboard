@@ -24,6 +24,9 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
 - **Zelf aan te passen.** Lettertype, tekstgrootte, kleurenpalet, knopgrootte,
   aantal kolommen, volgorde, icoon per knop, kleur per knop en volume per knop
   — allemaal met presets, alles wordt bewaard in je browser.
+- **Lege plekken in het rooster.** De indeling is een rooster van plekken die
+  ook leeg mogen zijn, dus je kunt bijvoorbeeld het midden van een rij van drie
+  openlaten.
 - **Werkt offline.** Na één keer laden draait de soundboard zonder internet.
   Op je telefoon kun je hem aan je beginscherm toevoegen.
 
@@ -36,10 +39,18 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
 | **STOP** | alles uitfaden |
 | **Slotje** | bewerkmodus aan/uit |
 | Knop aantikken in bewerkmodus | naam, icoon, kleur, volume en plek aanpassen |
-| Knop slepen in bewerkmodus | volgorde veranderen |
+| Knop naar een lege plek slepen | verhuist daarheen, oude plek blijft open |
+| Knop op een andere knop slepen | die twee wisselen om |
 | Timer aantikken | starten / pauzeren |
 
-Buiten de bewerkmodus kun je niets per ongeluk verslepen of veranderen.
+Buiten de bewerkmodus kun je niets per ongeluk verslepen of veranderen, en zijn
+lege plekken onzichtbaar — ze houden hun ruimte wel vast, zodat de indeling
+blijft staan zoals je hem hebt gemaakt.
+
+In de bewerkmodus staan er onder je knoppen altijd een paar lege plekken klaar
+om naartoe te slepen. Lege plekken haal je in één keer weg via
+**Instellingen → Lege plekken → Lege plekken opruimen**. Ze werken het best met
+een vast aantal kolommen; op AUTO schuift het rooster mee met de schermbreedte.
 
 ## Geluiden toevoegen of vervangen
 

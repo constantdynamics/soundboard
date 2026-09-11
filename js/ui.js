@@ -27,6 +27,13 @@
   }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
+  /** Lege plekken achteraan hebben geen zin; die halen we weg. */
+  function trimTail(order) {
+    var i = order.length;
+    while (i > 0 && !order[i - 1]) i--;
+    return order.slice(0, i);
+  }
+
   var FADE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
     'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M3.5 9.4h3L11 5.4v13.2l-4.5-4h-3z" fill="currentColor" stroke="none"/>' +
@@ -90,10 +97,16 @@
       this.defs = defs;
       defs.forEach(function (d) { self.byId[d.id] = d; });
 
-      // Volgorde aanvullen met wat er nog niet in staat.
-      var order = (S.data.order || []).filter(function (id) { return self.byId[id]; });
-      defs.forEach(function (d) { if (order.indexOf(d.id) < 0) order.push(d.id); });
-      S.data.order = order;
+      // De volgorde is een rooster van plekken: elke plek bevat een geluid
+      // of is leeg (null). Onbekende of dubbele namen worden een lege plek,
+      // zodat de indeling heel blijft als er een geluid verdwijnt.
+      var seen = {};
+      var order = (S.data.order || []).map(function (id) {
+        if (id && self.byId[id] && !seen[id]) { seen[id] = 1; return id; }
+        return null;
+      });
+      defs.forEach(function (d) { if (!seen[d.id]) { order.push(d.id); seen[d.id] = 1; } });
+      S.data.order = trimTail(order);
 
       this.bindChrome();
       this.applyTheme();
@@ -104,7 +117,7 @@
     /* ---- samengestelde definitie (manifest + eigen aanpassingen) -- */
     get: function (id) {
       var base = this.byId[id] || {}, over = S.data.sounds[id] || {};
-      var idx = Math.max(0, S.data.order.indexOf(id));
+      var idx = Math.max(0, S.data.order.indexOf(id));   // plek in het rooster
       var pal = S.find(S.PALETTES, S.data.palette).colors;
       return {
         id: id,
@@ -120,7 +133,15 @@
 
     ordered: function () {
       var self = this;
-      return S.data.order.map(function (id) { return self.get(id); });
+      return S.data.order.filter(Boolean).map(function (id) { return self.get(id); });
+    },
+
+    /** Hoeveel kolommen staan er nu echt? */
+    columnCount: function () {
+      if (S.data.columns !== 'auto') return parseInt(S.data.columns, 10) || 1;
+      var t = getComputedStyle($('board')).gridTemplateColumns || '';
+      var n = t.split(/\s+/).filter(function (x) { return x && x !== 'none'; }).length;
+      return Math.max(1, n);
     },
 
     /* ---- thema ---------------------------------------------------- */
@@ -154,19 +175,35 @@
     /* ---- knoppenraster -------------------------------------------- */
     renderBoard: function () {
       var board = $('board'), self = this;
+      var order = S.data.order;
       board.innerHTML = '';
-      var list = this.ordered();
-      $('board-empty').hidden = list.length > 0;
+      $('board-empty').hidden = order.filter(Boolean).length > 0;
 
-      list.forEach(function (d) {
-        board.appendChild(self.padEl(d));
+      order.forEach(function (id, i) {
+        board.appendChild(id ? self.padEl(self.get(id), i) : self.slotEl(i));
       });
       this.applyTheme();
+
+      // In de bewerkmodus komt er ruimte bij om naartoe te slepen: de
+      // huidige rij afmaken plus een hele lege rij eronder.
+      if (this.editing) {
+        var cols = this.columnCount(), n = order.length;
+        var extra = (n % cols ? cols - (n % cols) : 0) + cols;
+        for (var k = 0; k < extra; k++) board.appendChild(this.slotEl(n + k));
+      }
     },
 
-    padEl: function (d) {
+    /** Een lege plek in het rooster. */
+    slotEl: function (index) {
+      var slot = el('div', 'pad-slot', '<span class="pad-slot-box"></span>');
+      slot.dataset.slot = index;
+      return slot;
+    },
+
+    padEl: function (d, index) {
       var wrap = el('div', 'pad-wrap');
       wrap.dataset.id = d.id;
+      if (index !== undefined) wrap.dataset.slot = index;
       wrap.style.setProperty('--c', d.color);
       wrap.style.setProperty('--c-rgb', hexToRgb(d.color));
 
@@ -228,30 +265,26 @@
     },
 
     /* ---- slepen om te herschikken --------------------------------- */
+    /* Loslaten op een lege plek verhuist de knop daarheen en laat een gat
+       achter; loslaten op een andere knop wisselt de twee om. */
     startDrag: function (ev, wrap, pad) {
-      var self = this, board = $('board');
+      var self = this;
       var startX = ev.clientX, startY = ev.clientY;
-      var shiftX = 0, shiftY = 0, moved = false;
+      var moved = false, target = null;
+
+      function highlight(next) {
+        if (target === next) return;
+        if (target) target.classList.remove('is-drop-target');
+        target = next;
+        if (target) target.classList.add('is-drop-target');
+      }
 
       function move(e) {
-        var dx = e.clientX - startX - shiftX, dy = e.clientY - startY - shiftY;
         if (!moved && Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) < 9) return;
         if (!moved) { moved = true; wrap.classList.add('dragging'); }
-        wrap.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-
-        var over = self.wrapUnder(e.clientX, e.clientY, wrap);
-        if (over) {
-          var before = wrap.getBoundingClientRect();
-          var r = over.getBoundingClientRect();
-          var after = (e.clientY > r.top + r.height / 2 && Math.abs(e.clientY - (r.top + r.height / 2)) > 4)
-            || e.clientX > r.left + r.width / 2;
-          board.insertBefore(wrap, after ? over.nextSibling : over);
-          var now = wrap.getBoundingClientRect();
-          shiftX += now.left - before.left;
-          shiftY += now.top - before.top;
-          wrap.style.transform = 'translate(' + (e.clientX - startX - shiftX) + 'px,' +
-            (e.clientY - startY - shiftY) + 'px)';
-        }
+        wrap.style.transform = 'translate(' + (e.clientX - startX) + 'px,' +
+          (e.clientY - startY) + 'px)';
+        highlight(self.slotUnder(e.clientX, e.clientY, wrap));
       }
 
       function up() {
@@ -260,12 +293,13 @@
         pad.removeEventListener('pointercancel', up);
         wrap.classList.remove('dragging');
         wrap.style.transform = '';
-        if (moved) {
-          S.data.order = Array.prototype.map.call(board.children, function (n) { return n.dataset.id; });
-          S.save();
-          self.renderBoard();
-        } else {
-          self.openPadSheet(wrap.dataset.id);     // tik in bewerkmodus = knop bewerken
+        var drop = target;
+        highlight(null);
+
+        if (!moved) {
+          self.openPadSheet(wrap.dataset.id);      // tik = knop bewerken
+        } else if (drop) {
+          self.moveToSlot(parseInt(wrap.dataset.slot, 10), parseInt(drop.dataset.slot, 10));
         }
       }
 
@@ -275,17 +309,33 @@
       pad.addEventListener('pointercancel', up);
     },
 
-    wrapUnder: function (x, y, skip) {
-      var wraps = document.querySelectorAll('#board .pad-wrap'), best = null, bestD = Infinity;
-      for (var i = 0; i < wraps.length; i++) {
-        var w = wraps[i];
-        if (w === skip) continue;
-        var r = w.getBoundingClientRect();
-        if (x < r.left - 12 || x > r.right + 12 || y < r.top - 12 || y > r.bottom + 12) continue;
+    /** De plek (vol of leeg) onder de vinger, de gesleepte knop niet meegeteld. */
+    slotUnder: function (x, y, skip) {
+      var cells = document.querySelectorAll('#board .pad-wrap, #board .pad-slot');
+      var best = null, bestD = Infinity;
+      for (var i = 0; i < cells.length; i++) {
+        var c = cells[i];
+        if (c === skip || c.dataset.slot === undefined) continue;
+        var r = c.getBoundingClientRect();
+        if (x < r.left - 10 || x > r.right + 10 || y < r.top - 10 || y > r.bottom + 10) continue;
         var d = Math.abs(x - (r.left + r.width / 2)) + Math.abs(y - (r.top + r.height / 2));
-        if (d < bestD) { bestD = d; best = w; }
+        if (d < bestD) { bestD = d; best = c; }
       }
       return best;
+    },
+
+    /** Verhuist de knop van de ene plek naar de andere. */
+    moveToSlot: function (from, to) {
+      if (isNaN(from) || isNaN(to) || from === to) return;
+      var o = S.data.order;
+      while (o.length <= to) o.push(null);
+      var moving = o[from];
+      if (!moving) return;
+      o[from] = o[to] || null;      // bezet: omwisselen. leeg: gat achterlaten.
+      o[to] = moving;
+      S.data.order = trimTail(o);
+      S.save();
+      this.renderBoard();
     },
 
     /* ---- beeldverversing ------------------------------------------ */
@@ -360,7 +410,7 @@
       this.editing = force === undefined ? !this.editing : force;
       $('btn-edit').setAttribute('aria-pressed', String(this.editing));
       $('btn-edit-label').textContent = this.editing ? 'LOS' : 'VAST';
-      this.applyTheme();
+      this.renderBoard();
       if (!this.editing) this.closeSheets();
     },
 
@@ -460,6 +510,24 @@
       body.appendChild(this.field('KOLOMMEN', '', this.chipRow(S.COLUMNS, d.columns, function (it) {
         S.set('columns', it.id); self.applyTheme(); self.renderSettings();
       })));
+
+      /* lege plekken */
+      var holes = d.order.filter(function (x) { return !x; }).length;
+      var holeRow = el('div', 'row');
+      var tidy = el('button', 'btn', 'LEGE PLEKKEN OPRUIMEN');
+      tidy.type = 'button';
+      tidy.disabled = holes === 0;
+      tidy.addEventListener('click', function () {
+        S.data.order = d.order.filter(Boolean);
+        S.save(); self.renderBoard(); self.renderSettings();
+      });
+      holeRow.appendChild(tidy);
+      body.appendChild(this.field('LEGE PLEKKEN',
+        holes === 0 ? 'GEEN' : holes + (holes === 1 ? ' PLEK' : ' PLEKKEN'), holeRow));
+      body.lastChild.appendChild(el('p', 'hint',
+        'Zet het slotje open en sleep een knop naar een lege plek om gaten in het ' +
+        'rooster te maken. Met een vast aantal kolommen blijven die gaten op hun plek; ' +
+        'op AUTO schuift het rooster mee met de schermbreedte.'));
 
       /* labels tonen */
       body.appendChild(this.field('LABELS ONDER DE KNOPPEN', '', this.chipRow(
@@ -678,13 +746,14 @@
       left.addEventListener('click', function () { self.move(id, -1); self.renderPadSheet(); });
       var right = el('button', 'btn', 'NAAR ACHTEREN &rarr;');
       right.type = 'button';
-      right.disabled = pos >= S.data.order.length - 1;
       right.addEventListener('click', function () { self.move(id, 1); self.renderPadSheet(); });
       moveRow.appendChild(left); moveRow.appendChild(right);
-      body.appendChild(this.field('VOLGORDE',
+      body.appendChild(this.field('PLEK IN HET ROOSTER',
         'PLEK ' + (pos + 1) + ' VAN ' + S.data.order.length, moveRow));
       body.lastChild.appendChild(el('p', 'hint',
-        'Je kunt de knoppen ook direct op het bord verslepen zolang het slotje open staat.'));
+        'Zolang het slotje open staat kun je knoppen ook gewoon verslepen. ' +
+        'Laat je er eentje op een lege plek los, dan verhuist hij daarheen en blijft ' +
+        'zijn oude plek open. Laat je hem op een andere knop los, dan wisselen ze om.'));
     },
 
     refreshPad: function (id) {
@@ -701,11 +770,9 @@
     },
 
     move: function (id, delta) {
-      var order = S.data.order, i = order.indexOf(id), j = i + delta;
-      if (i < 0 || j < 0 || j >= order.length) return;
-      order.splice(j, 0, order.splice(i, 1)[0]);
-      S.save();
-      this.renderBoard();
+      var i = S.data.order.indexOf(id), j = i + delta;
+      if (i < 0 || j < 0 || j > S.data.order.length) return;
+      this.moveToSlot(i, j);
     },
 
     /* ---- iconenkiezer ---------------------------------------------- */
