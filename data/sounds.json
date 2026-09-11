@@ -1,0 +1,67 @@
+{
+  "sounds": [
+    {
+      "id": "dit-is-de-roast",
+      "file": "dit-is-de-roast.mp3",
+      "label": "DIT IS DE ROAST",
+      "icon": "fire",
+      "color": "#ff2d95",
+      "gainDb": -2.75,
+      "duration": 10.0
+    },
+    {
+      "id": "ba-dum-tss",
+      "file": "ba-dum-tss.mp3",
+      "label": "BA DUM TSS",
+      "icon": "drum",
+      "color": "#00e5ff",
+      "gainDb": 3.85,
+      "duration": 1.944
+    },
+    {
+      "id": "ba-dum-tss-2",
+      "file": "ba-dum-tss-2.mp3",
+      "label": "BA DUM TSS 2",
+      "icon": "sticks",
+      "color": "#b14aff",
+      "gainDb": 3.84,
+      "duration": 2.928
+    },
+    {
+      "id": "codetaal-quiz",
+      "file": "codetaal-quiz.mp3",
+      "label": "CODETAAL QUIZ",
+      "icon": "question",
+      "color": "#ffd400",
+      "gainDb": -2.41,
+      "duration": 5.6
+    },
+    {
+      "id": "codetaal-quiz-2",
+      "file": "codetaal-quiz-2.mp3",
+      "label": "CODETAAL QUIZ 2",
+      "icon": "bulb",
+      "color": "#39ff88",
+      "gainDb": -2.43,
+      "duration": 6.814
+    },
+    {
+      "id": "loyal-friends",
+      "file": "loyal-friends.mp3",
+      "label": "LOYAL FRIENDS",
+      "icon": "heart",
+      "color": "#ff6a00",
+      "gainDb": -2.1,
+      "duration": 159.613
+    },
+    {
+      "id": "diamonds-on-the-soles",
+      "file": "diamonds-on-the-soles.mp3",
+      "label": "DIAMONDS",
+      "icon": "diamond",
+      "color": "#2f6bff",
+      "gainDb": -2.41,
+      "duration": 208.76
+    }
+  ]
+}

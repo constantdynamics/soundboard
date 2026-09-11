@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Big Fat Speech Soundboard</title>
+<meta name="description" content="Soundboard voor speeches: alle geluiden vooraf ingeladen, gelijktijdig afspeelbaar, in dark synthwave.">
+<meta name="theme-color" content="#0a0118">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Audiowide&family=Righteous&family=Chakra+Petch:wght@600;700&family=Monoton&family=VT323&family=Press+Start+2P&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="backdrop" aria-hidden="true">
+  <div class="backdrop-sun"></div>
+  <div class="backdrop-grid"></div>
+  <div class="backdrop-scan"></div>
+</div>
+
+<header class="topbar">
+  <h1 class="brand">
+    <span class="brand-sm">THE BIG FAT</span>
+    <span class="brand-lg">SPEECH SOUNDBOARD</span>
+  </h1>
+
+  <div class="timer" id="timer" data-state="idle">
+    <button class="timer-main" id="timer-toggle" type="button"
+            aria-label="Timer starten of pauzeren">
+      <span class="timer-time" id="timer-time">00:00</span>
+      <span class="timer-target" id="timer-target">/ 07:00</span>
+    </button>
+    <button class="timer-reset" id="timer-reset" type="button" aria-label="Timer op nul">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3.4 12a8.6 8.6 0 1 0 2.6-6.1"/><path d="M3 3.4v4.4h4.4"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="board" id="board" aria-label="Geluidsknoppen"></main>
+<p class="board-empty" id="board-empty" hidden>Geen geluiden gevonden.</p>
+
+<nav class="dock" id="dock" aria-label="Bediening">
+  <button class="dock-stop" id="btn-stop" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="5.5" y="5.5" width="13" height="13" rx="2.5"/>
+    </svg>
+    <span>STOP</span>
+  </button>
+
+  <label class="dock-vol" aria-label="Mastervolume">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 9.2h3.2L12 5v14l-4.8-4.2H4z" fill="currentColor" stroke="none"/>
+      <path d="M15.6 9.6a3.6 3.6 0 0 1 0 4.8"/><path d="M18.2 7a7.2 7.2 0 0 1 0 10"/>
+    </svg>
+    <input type="range" id="master-vol" min="0" max="100" step="1" value="85">
+  </label>
+
+  <button class="dock-btn" id="btn-edit" type="button" aria-pressed="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="4.4" y="10.4" width="15.2" height="10.2" rx="2.4"/>
+      <path class="shackle" d="M8 10.4V7.6a4 4 0 0 1 8 0v2.8"/>
+      <circle cx="12" cy="15.4" r="1.4" fill="currentColor" stroke="none"/>
+    </svg>
+    <span id="btn-edit-label">VAST</span>
+  </button>
+
+  <button class="dock-btn" id="btn-settings" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.2"/>
+      <path d="M19.6 14.4a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.4-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.4 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1z"/>
+    </svg>
+    <span>INSTELLINGEN</span>
+  </button>
+</nav>
+
+<!-- ------------------------------------------------------------- -->
+<div class="scrim" id="scrim" hidden></div>
+
+<!-- Instellingenpaneel -->
+<section class="sheet sheet--settings" id="settings-panel" hidden aria-label="Instellingen">
+  <header class="sheet-head">
+    <h2>INSTELLINGEN</h2>
+    <button class="sheet-close" id="settings-close" type="button" aria-label="Sluiten">&times;</button>
+  </header>
+  <div class="sheet-body" id="settings-body"></div>
+</section>
+
+<!-- Knop bewerken -->
+<section class="sheet sheet--pad" id="pad-sheet" hidden aria-label="Knop bewerken">
+  <header class="sheet-head">
+    <h2 id="pad-sheet-title">KNOP</h2>
+    <button class="sheet-close" id="pad-close" type="button" aria-label="Sluiten">&times;</button>
+  </header>
+  <div class="sheet-body" id="pad-body"></div>
+</section>
+
+<!-- Iconenkiezer -->
+<section class="sheet sheet--icons" id="icon-sheet" hidden aria-label="Icoon kiezen">
+  <header class="sheet-head">
+    <h2>ICOON KIEZEN</h2>
+    <button class="sheet-close" id="icon-close" type="button" aria-label="Sluiten">&times;</button>
+  </header>
+  <div class="sheet-body" id="icon-body"></div>
+</section>
+
+<!-- Startscherm: één tik ontgrendelt het geluid én laadt alles in -->
+<div class="splash" id="splash">
+  <div class="splash-inner">
+    <h2 class="splash-title">
+      <span class="brand-sm">THE BIG FAT</span>
+      <span class="brand-lg">SPEECH SOUNDBOARD</span>
+    </h2>
+    <button class="splash-btn" id="splash-btn" type="button">
+      <span id="splash-btn-text">TIK OM TE STARTEN</span>
+    </button>
+    <div class="splash-bar"><div class="splash-bar-fill" id="splash-bar"></div></div>
+    <p class="splash-note" id="splash-note">Alle geluiden worden vooraf ingeladen, zodat er tijdens je speech geen vertraging is.</p>
+  </div>
+</div>
+
+<script src="js/icons.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

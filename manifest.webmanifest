@@ -1,0 +1,14 @@
+{
+  "name": "The Big Fat Speech Soundboard",
+  "short_name": "Soundboard",
+  "description": "Soundboard voor speeches: alles vooraf ingeladen, gelijktijdig afspeelbaar, in dark synthwave.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07010e",
+  "theme_color": "#07010e",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
