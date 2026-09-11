@@ -27,10 +27,11 @@ jobs:
       - name: Code ophalen
         uses: actions/checkout@v4
 
-      - name: Pages klaarzetten (en zo nodig aanzetten)
+      # Let op: GitHub Pages moet eenmalig aanstaan in de repo-instellingen:
+      # Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+      # De token van Actions mag dat zelf niet aanzetten.
+      - name: Pages klaarzetten
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Site inpakken
         uses: actions/upload-pages-artifact@v3

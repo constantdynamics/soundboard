@@ -104,5 +104,13 @@ Geen build-stap, geen afhankelijkheden: het is gewone HTML, CSS en JavaScript.
 ## Publiceren
 
 `.github/workflows/deploy.yml` publiceert bij elke push naar `main` (en naar
-`claude/**`-branches) naar GitHub Pages, en zet Pages zo nodig zelf aan. Zodra
-er een `main`-branch is, kun je de `claude/**`-regel uit de workflow halen.
+`claude/**`-branches) naar GitHub Pages.
+
+**Eenmalig instellen:** ga naar **Settings → Pages → Build and deployment** en
+zet **Source** op **GitHub Actions**. Dat kan de workflow niet zelf doen; de
+token van GitHub Actions heeft geen rechten om Pages aan te zetten. Draai
+daarna de workflow opnieuw via **Actions → Publiceren op GitHub Pages →
+Run workflow**.
+
+Zodra er een `main`-branch is, kun je de `claude/**`-regel uit de workflow
+halen.
