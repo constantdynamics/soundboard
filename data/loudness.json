@@ -138,10 +138,10 @@
       "lufs": -2.32,
       "momentaryMax": -1.29,
       "peakDb": 1.31,
-      "workPeakDb": 0.45,
+      "workPeakDb": 0.42,
       "gainDb": -13.68,
       "peakAfterDb": -12.37,
-      "duration": 0.76,
+      "duration": 0.795,
       "sampleRate": 44100,
       "channels": 2
     },
