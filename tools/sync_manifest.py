@@ -10,7 +10,7 @@ Werkwijze bij een nieuw geluid:
     2. python3 tools/analyze_loudness.py
     3. python3 tools/sync_manifest.py
 """
-import glob, json, os, re, sys
+import glob, hashlib, json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AUDIO_DIR = os.path.join(ROOT, "audio")
@@ -38,6 +38,17 @@ GUESS = [
     (r"feest|party|confetti", "confetti"),
     (r"krekel|cricket|stilte", "bug"),
 ]
+
+
+def file_hash(path):
+    """Korte hash van de inhoud. Die hangt in de url achter het bestand, zodat
+    een vervangen geluid een nieuwe url krijgt en de browser hem opnieuw
+    ophaalt in plaats van de opgeslagen versie te blijven gebruiken."""
+    h = hashlib.sha1()
+    with open(path, "rb") as f:
+        for blok in iter(lambda: f.read(65536), b""):
+            h.update(blok)
+    return h.hexdigest()[:10]
 
 
 def slugify(name):
@@ -90,11 +101,14 @@ def main():
         })
         added += 1
 
-    for entry in out:                                 # meting doorzetten
+    for entry in out:                                 # meting en hash doorzetten
         m = loud.get(entry["file"])
         if m:
             entry["gainDb"] = m["gainDb"]
             entry["duration"] = m["duration"]
+        pad = os.path.join(AUDIO_DIR, entry["file"])
+        if os.path.exists(pad):
+            entry["hash"] = file_hash(pad)
 
     manifest["sounds"] = out
     with open(MANIFEST, "w") as f:

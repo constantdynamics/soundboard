@@ -67,7 +67,16 @@ een vast aantal kolommen; op AUTO schuift het rooster mee met de schermbreedte.
 
 De service worker haalt bestanden op met revalidatie, zodat een nieuwe versie
 meteen doorkomt in plaats van achter de cache van GitHub Pages te blijven
-hangen. Draait er al een oudere versie, dan verschijnt onderin **NIEUWE VERSIE
+hangen.
+
+Audiobestanden gaan anders: die worden uit de cache geserveerd zonder na te
+vragen, want dat scheelt wachttijd en ze veranderen zelden. Vervang je er toch
+eentje, dan zou je de oude versie blijven horen. Daarom zet
+`tools/sync_manifest.py` een korte inhoudshash van elk bestand in
+`data/sounds.json`, en vraagt de app het op als `audio/naam.mp3?v=<hash>`.
+Andere inhoud betekent een andere hash, dus een andere url, dus een verse
+download. Na het laden geeft de app de geldende lijst door aan de service
+worker, die alles wat er niet meer bij hoort uit de cache gooit. Draait er al een oudere versie, dan verschijnt onderin **NIEUWE VERSIE
 KLAAR** met een knop om te vernieuwen. Welke versie je draait staat in
 **Instellingen → Versie**; daar zit ook **Nieuwste versie ophalen**, dat de
 opgeslagen bestanden weggooit en opnieuw laadt (je instellingen blijven staan).
@@ -90,6 +99,9 @@ opgeslagen bestanden weggooit en opnieuw laadt (je instellingen blijven staan).
    python3 tools/analyze_loudness.py     # schrijft data/loudness.json
    python3 tools/sync_manifest.py        # werkt data/sounds.json bij
    ```
+
+   `sync_manifest.py` zet ook de inhoudshash bij, dus draai hem altijd nadat je
+   een bestand hebt vervangen — anders blijven mensen de oude versie horen.
 
 3. Commit en push. GitHub Actions publiceert de site opnieuw.
 

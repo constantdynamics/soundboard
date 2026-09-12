@@ -37,7 +37,8 @@
 
       var total = defs.length, done = 0;
       return Promise.all(defs.map(function (d) {
-        return fetch(base + d.file, { cache: 'force-cache' })
+        var url = base + d.file + (d.hash ? '?v=' + d.hash : '');
+        return fetch(url, { cache: 'force-cache' })
           .then(function (r) {
             if (!r.ok) throw new Error(r.status + ' ' + d.file);
             return r.arrayBuffer();

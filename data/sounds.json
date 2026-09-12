@@ -7,7 +7,8 @@
       "icon": "fire",
       "color": "#ff2d95",
       "gainDb": -2.75,
-      "duration": 10.0
+      "duration": 10.0,
+      "hash": "4eb39b7d16"
     },
     {
       "id": "ba-dum-tss",
@@ -16,7 +17,8 @@
       "icon": "drum",
       "color": "#00e5ff",
       "gainDb": 3.85,
-      "duration": 1.944
+      "duration": 1.944,
+      "hash": "555d4782d0"
     },
     {
       "id": "ba-dum-tss-2",
@@ -25,7 +27,8 @@
       "icon": "sticks",
       "color": "#b14aff",
       "gainDb": 5.68,
-      "duration": 2.928
+      "duration": 2.928,
+      "hash": "dfb6c76a48"
     },
     {
       "id": "afkeuring",
@@ -34,7 +37,8 @@
       "icon": "thumbdown",
       "color": "#ffd400",
       "gainDb": -7.79,
-      "duration": 16.692
+      "duration": 16.692,
+      "hash": "af3179356d"
     },
     {
       "id": "toppunt",
@@ -43,7 +47,8 @@
       "icon": "crown",
       "color": "#39ff88",
       "gainDb": -13.68,
-      "duration": 0.795
+      "duration": 0.795,
+      "hash": "9e57eb0b7b"
     },
     {
       "id": "codetaal-quiz",
@@ -52,7 +57,8 @@
       "icon": "question",
       "color": "#ff6a00",
       "gainDb": -2.41,
-      "duration": 5.6
+      "duration": 5.6,
+      "hash": "d7565b487f"
     },
     {
       "id": "codetaal-quiz-2",
@@ -61,7 +67,8 @@
       "icon": "bulb",
       "color": "#2f6bff",
       "gainDb": -2.43,
-      "duration": 6.814
+      "duration": 6.814,
+      "hash": "e39951ab5a"
     },
     {
       "id": "whatsapp-15-14",
@@ -70,7 +77,8 @@
       "icon": "chat",
       "color": "#ff3355",
       "gainDb": 22.22,
-      "duration": 3.093
+      "duration": 3.093,
+      "hash": "3c2bd1533a"
     },
     {
       "id": "whatsapp-15-17",
@@ -79,7 +87,8 @@
       "icon": "chat",
       "color": "#ff2d95",
       "gainDb": 20.67,
-      "duration": 2.837
+      "duration": 2.837,
+      "hash": "e519e67165"
     },
     {
       "id": "whatsapp-15-29",
@@ -88,7 +97,8 @@
       "icon": "chat",
       "color": "#00e5ff",
       "gainDb": 18.77,
-      "duration": 2.304
+      "duration": 2.304,
+      "hash": "27abad8f9a"
     },
     {
       "id": "whatsapp-16-50",
@@ -97,7 +107,8 @@
       "icon": "chat",
       "color": "#b14aff",
       "gainDb": 13.97,
-      "duration": 2.475
+      "duration": 2.475,
+      "hash": "24e866639b"
     },
     {
       "id": "whatsapp-16-53",
@@ -106,7 +117,8 @@
       "icon": "chat",
       "color": "#ffd400",
       "gainDb": 12.99,
-      "duration": 1.899
+      "duration": 1.899,
+      "hash": "68bd726b9e"
     },
     {
       "id": "it-was-a-good-day",
@@ -115,7 +127,8 @@
       "icon": "cool",
       "color": "#39ff88",
       "gainDb": -1.3,
-      "duration": 2.88
+      "duration": 2.88,
+      "hash": "ad88e7e077"
     },
     {
       "id": "1000-good-intentions",
@@ -124,7 +137,8 @@
       "icon": "star",
       "color": "#ff6a00",
       "gainDb": -1.18,
-      "duration": 5.141
+      "duration": 5.141,
+      "hash": "cf2edd847d"
     },
     {
       "id": "rodriguez",
@@ -133,7 +147,8 @@
       "icon": "guitar",
       "color": "#2f6bff",
       "gainDb": 0.46,
-      "duration": 29.867
+      "duration": 29.867,
+      "hash": "5e91068ea0"
     },
     {
       "id": "als-ge-dit-ziet",
@@ -142,7 +157,8 @@
       "icon": "eye",
       "color": "#39ff88",
       "gainDb": 0.77,
-      "duration": 6.0
+      "duration": 6.0,
+      "hash": "5138039c63"
     },
     {
       "id": "loyal-friends",
@@ -151,7 +167,8 @@
       "icon": "heart",
       "color": "#ff3355",
       "gainDb": -2.1,
-      "duration": 159.613
+      "duration": 159.613,
+      "hash": "c71df6cba6"
     },
     {
       "id": "diamonds-on-the-soles",
@@ -160,7 +177,8 @@
       "icon": "diamond",
       "color": "#ff2d95",
       "gainDb": -2.41,
-      "duration": 208.76
+      "duration": 208.76,
+      "hash": "d1bf33b251"
     }
   ]
 }

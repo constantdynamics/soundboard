@@ -4,7 +4,7 @@
 (function (global) {
   'use strict';
 
-  global.APP_VERSION = '2026.09.12-5';
+  global.APP_VERSION = '2026.09.12-6';
 
   var S = global.Settings, E = global.AudioEngine, UI = global.UI;
   var splash = document.getElementById('splash');
@@ -58,6 +58,7 @@
         E.setMaster(S.data.masterVolume);
 
         UI.init(defs);
+        tellServiceWorker(defs);
         splash.classList.add('gone');
         setTimeout(function () { splash.hidden = true; }, 450);
         keepAwake();
@@ -89,6 +90,16 @@
       lock = l;
       l.addEventListener('release', function () { lock = null; });
     }).catch(function () { /* mag mislukken, is een extraatje */ });
+  }
+
+  /** Laat de service worker weten welke audio-urls nu gelden. */
+  function tellServiceWorker(list) {
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return;
+    var base = new URL('audio/', global.location.href).pathname;
+    navigator.serviceWorker.controller.postMessage({
+      type: 'audio-keep',
+      urls: list.map(function (d) { return base + d.file + (d.hash ? '?v=' + d.hash : ''); })
+    });
   }
 
   /* ---- nieuwe versie opmerken en aanbieden ----------------------- */

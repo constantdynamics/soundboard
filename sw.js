@@ -6,7 +6,7 @@
      langs de browsercache, en die houdt GitHub Pages-bestanden tien minuten
      vast — dan zie je na een update nog de oude soundboard.                */
 
-var CACHE = 'bfss-v3';
+var CACHE = 'bfss-v4';
 var CORE = [
   './', './index.html', './css/style.css',
   './js/icons.js', './js/settings.js', './js/audio.js', './js/ui.js', './js/app.js',
@@ -28,7 +28,22 @@ self.addEventListener('activate', function (e) {
 });
 
 self.addEventListener('message', function (e) {
-  if (e.data === 'skip-waiting') self.skipWaiting();
+  if (e.data === 'skip-waiting') { self.skipWaiting(); return; }
+
+  // De pagina stuurt na het laden de lijst met audio-urls die nu gelden.
+  // Alles wat daar niet meer bij hoort mag uit de cache - anders blijft een
+  // vervangen of gearchiveerd geluid voor altijd ruimte innemen.
+  if (e.data && e.data.type === 'audio-keep' && Array.isArray(e.data.urls)) {
+    e.waitUntil(caches.open(CACHE).then(function (c) {
+      return c.keys().then(function (keys) {
+        return Promise.all(keys.map(function (req) {
+          var u = new URL(req.url);
+          if (!isAudio(u.pathname)) return null;
+          return e.data.urls.indexOf(u.pathname + u.search) >= 0 ? null : c.delete(req);
+        }));
+      });
+    }));
+  }
 });
 
 function isAudio(pathname) { return /\.(mp3|ogg|wav|m4a)$/i.test(pathname); }
