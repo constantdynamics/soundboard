@@ -27,6 +27,9 @@
   --label-size: 11px;
   --gap: 12px;
   --pad-scale: 1;
+  --pad-border: 2px;
+  --pad-radius: 22px;
+  --edge: 14px;
 
   --dock-h: 74px;
   --safe-t: env(safe-area-inset-top, 0px);
@@ -174,7 +177,7 @@ h1, h2, h3, p { margin: 0; }
   display: grid; gap: var(--gap);
   grid-template-columns: repeat(auto-fill, minmax(calc(var(--pad-size) * var(--pad-scale)), 1fr));
   align-content: start;
-  padding: 6px calc(var(--safe-r) + 14px) calc(var(--dock-h) + var(--safe-b) + 26px) calc(var(--safe-l) + 14px);
+  padding: 6px calc(var(--safe-r) + var(--edge)) calc(var(--dock-h) + var(--safe-b) + 26px) calc(var(--safe-l) + var(--edge));
 }
 .board.cols-1 { grid-template-columns: 1fr; }
 .board.cols-2 { grid-template-columns: repeat(2, 1fr); }
@@ -203,8 +206,8 @@ h1, h2, h3, p { margin: 0; }
 
 .pad {
   position: relative; width: 100%; aspect-ratio: 1; overflow: hidden;
-  border-radius: 22px;
-  border: 2px solid var(--c);
+  border-radius: var(--pad-radius);
+  border: var(--pad-border) solid var(--c);
   background:
     radial-gradient(120% 90% at 50% 0%, rgba(var(--c-rgb), .28) 0%, rgba(var(--c-rgb), .05) 55%, transparent 100%),
     linear-gradient(180deg, #1a0730 0%, #0d0219 100%);
@@ -224,14 +227,14 @@ h1, h2, h3, p { margin: 0; }
 }
 .pad:active { transform: scale(.955); }
 
-.pad-wrap.is-playing .pad {
+.board .pad-wrap.is-playing .pad {
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, .6),
     0 0 26px rgba(var(--c-rgb), .85),
     0 0 56px rgba(var(--c-rgb), .38),
     inset 0 0 32px rgba(var(--c-rgb), .34);
 }
-.pad-wrap.is-playing .pad .ico { filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 22px var(--c)); }
+.board .pad-wrap.is-playing .pad .ico { filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 22px var(--c)); }
 
 /* korte flits bij elke aanslag */
 .pad.hit::after {
@@ -285,7 +288,7 @@ h1, h2, h3, p { margin: 0; }
 /* lege plek in het rooster: neemt altijd ruimte in, maar is buiten de
    bewerkmodus onzichtbaar */
 .pad-slot { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-.pad-slot-box { width: 100%; aspect-ratio: 1; border-radius: 22px; }
+.pad-slot-box { width: 100%; aspect-ratio: 1; border-radius: var(--pad-radius); }
 
 .board.is-editing .pad-slot-box {
   position: relative;
@@ -312,6 +315,119 @@ h1, h2, h3, p { margin: 0; }
 .pad-wrap.is-drop-target .pad {
   border-style: solid;
   box-shadow: 0 0 0 3px var(--neon-b), 0 0 24px rgba(var(--neon-b-rgb), .6);
+}
+
+
+/* ---------- vulstijlen -------------------------------------------
+   Elke regel geldt voor de knop op het bord en voor het kleine
+   voorbeeldje in het instellingenpaneel, zodat ze niet uit elkaar
+   kunnen lopen.                                                     */
+
+.fillprev { display: inline-flex; }
+.fillbox {
+  width: 20px; height: 20px; border-radius: 6px; flex: none;
+  border: 1.5px solid var(--c);
+  background: linear-gradient(180deg, #1a0730, #0d0219);
+}
+
+/* 1. NEON — de standaard staat al bij .pad zelf */
+.fillprev[data-fill="neon"] .fillbox {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(var(--c-rgb), .28), transparent 70%),
+    linear-gradient(180deg, #1a0730, #0d0219);
+  box-shadow: 0 0 7px rgba(var(--c-rgb), .55), inset 0 0 8px rgba(var(--c-rgb), .3);
+}
+
+/* 2. VOL */
+.board[data-fill="vol"] .pad,
+.fillprev[data-fill="vol"] .fillbox {
+  background: linear-gradient(180deg, rgba(var(--c-rgb), .95), rgba(var(--c-rgb), .6));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), 0 6px 18px rgba(0, 0, 0, .45);
+}
+.board[data-fill="vol"] .pad .ico {
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .8)) drop-shadow(0 0 2px rgba(0, 0, 0, .9));
+}
+
+/* 3. VERLOOP */
+.board[data-fill="verloop"] .pad,
+.fillprev[data-fill="verloop"] .fillbox {
+  background: linear-gradient(155deg, rgba(var(--c-rgb), .95) 0%, rgba(var(--c-rgb), .28) 46%, #0b0219 100%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), 0 0 16px rgba(var(--c-rgb), .3);
+}
+.board[data-fill="verloop"] .pad .ico { filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .7)); }
+
+/* 4. GLOED */
+.board[data-fill="gloed"] .pad,
+.fillprev[data-fill="gloed"] .fillbox {
+  background: radial-gradient(circle at 50% 52%, rgba(var(--c-rgb), .5), #0a0118 74%);
+  box-shadow: 0 0 32px rgba(var(--c-rgb), .8), 0 0 64px rgba(var(--c-rgb), .35),
+    inset 0 0 38px rgba(var(--c-rgb), .35);
+}
+
+/* 5. GLAS */
+.board[data-fill="glas"] .pad,
+.fillprev[data-fill="glas"] .fillbox {
+  background: linear-gradient(150deg, rgba(var(--c-rgb), .5), rgba(255, 255, 255, .05) 62%, rgba(var(--c-rgb), .3));
+  border-color: rgba(255, 255, 255, .55);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .45), inset 0 -10px 22px rgba(var(--c-rgb), .22),
+    0 8px 26px rgba(0, 0, 0, .5);
+}
+
+/* 6. OMTREK */
+.board[data-fill="omtrek"] .pad,
+.fillprev[data-fill="omtrek"] .fillbox {
+  background: rgba(8, 1, 16, .5);
+  box-shadow: none;
+}
+.board[data-fill="omtrek"] .pad .ico { filter: none; }
+
+/* 7. DUOTOON */
+.board[data-fill="duotoon"] .pad,
+.fillprev[data-fill="duotoon"] .fillbox {
+  background: linear-gradient(135deg, rgba(var(--c-rgb), .92) 0 50%, #150630 50% 100%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), 0 0 18px rgba(var(--c-rgb), .3);
+}
+.board[data-fill="duotoon"] .pad .ico { filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .75)); }
+
+/* 8. SCANLINE */
+.board[data-fill="scanline"] .pad,
+.fillprev[data-fill="scanline"] .fillbox {
+  background:
+    repeating-linear-gradient(180deg, rgba(var(--c-rgb), .62) 0 3px, rgba(9, 2, 18, .92) 3px 7px),
+    #0b0219;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), 0 0 18px rgba(var(--c-rgb), .35);
+}
+.board[data-fill="scanline"] .pad .ico { filter: drop-shadow(0 0 5px #000) drop-shadow(0 0 12px #000); }
+
+/* 9. RASTER */
+.board[data-fill="raster"] .pad,
+.fillprev[data-fill="raster"] .fillbox {
+  background:
+    repeating-linear-gradient(90deg,  rgba(var(--c-rgb), .55) 0 1px, transparent 1px 15px),
+    repeating-linear-gradient(180deg, rgba(var(--c-rgb), .4)  0 1px, transparent 1px 15px),
+    linear-gradient(180deg, #180734, #0a0118);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), inset 0 0 26px rgba(var(--c-rgb), .25);
+}
+.fillprev[data-fill="raster"] .fillbox {
+  background:
+    repeating-linear-gradient(90deg,  rgba(var(--c-rgb), .55) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(180deg, rgba(var(--c-rgb), .4)  0 1px, transparent 1px 5px),
+    linear-gradient(180deg, #180734, #0a0118);
+}
+
+/* 10. CHROOM */
+.board[data-fill="chroom"] .pad,
+.fillprev[data-fill="chroom"] .fillbox {
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, .82) 0%, rgba(var(--c-rgb), .55) 20%,
+    #0e0326 48%, #16063a 54%,
+    rgba(var(--c-rgb), .45) 82%, rgba(255, 255, 255, .6) 100%);
+  border-color: rgba(255, 255, 255, .7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .55), 0 6px 20px rgba(0, 0, 0, .5);
+}
+.board[data-fill="chroom"] .pad .ico {
+  filter: drop-shadow(0 0 4px #000) drop-shadow(0 2px 6px rgba(0, 0, 0, .9));
 }
 
 /* ---------- bewerkmodus ------------------------------------------ */
@@ -573,7 +689,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* ---------- groter scherm ---------------------------------------- */
 @media (min-width: 720px) {
-  :root { --dock-h: 78px; --gap: 18px; --pad-scale: 1.35; }
+  :root { --dock-h: 78px; --pad-scale: 1.35; }
   .topbar { padding-top: calc(var(--safe-t) + 16px); }
   .brand-sm { font-size: 10px; }
   .timer-time { font-size: 22px; }

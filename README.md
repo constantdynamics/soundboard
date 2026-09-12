@@ -21,9 +21,13 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
   geluid.
 - **Timer rechtsboven.** Telt op, met een instelbare doelduur: vanaf 80% wordt
   hij geel, daarboven rood. Start vanzelf bij het eerste geluid.
-- **Zelf aan te passen.** Lettertype, tekstgrootte, kleurenpalet, knopgrootte,
-  aantal kolommen, volgorde, icoon per knop, kleur per knop en volume per knop
-  — allemaal met presets, alles wordt bewaard in je browser.
+- **Zelf aan te passen.** Lettertype, tekstgrootte, kleurenpalet, knopstijl,
+  randdikte, afronding, tussenruimte, knopgrootte, aantal kolommen, volgorde,
+  icoon per knop, kleur per knop en volume per knop — allemaal met presets,
+  alles wordt bewaard in je browser.
+- **16 kleurenpaletten en 10 knopstijlen.** De meerkleurige paletten lopen over
+  de hele kleurencirkel, zodat knoppen naast elkaar echt van elkaar verschillen.
+  De knopstijl bepaalt hoe die kleur over de knop wordt verdeeld.
 - **Lege plekken in het rooster.** De indeling is een rooster van plekken die
   ook leeg mogen zijn, dus je kunt bijvoorbeeld het midden van een rij van drie
   openlaten.
@@ -79,6 +83,22 @@ opgeslagen bestanden weggooit en opnieuw laadt (je instellingen blijven staan).
 `sync_manifest.py` laat bestaande namen, iconen, kleuren en volgorde met rust en
 zet nieuwe bestanden onderaan met een automatisch gekozen icoon. De naam en het
 icoon van een nieuwe knop pas je daarna gewoon in de app zelf aan.
+
+## Uiterlijk
+
+| instelling | wat het doet |
+|---|---|
+| Kleurenpalet | 12 meerkleurige sets plus 4 monokleuren; bepaalt de kleur per knop |
+| Knopstijl | Neon, Vol, Verloop, Gloed, Glas, Omtrek, Duotoon, Scanline, Raster, Chroom |
+| Randdikte | van geen rand tot 8 px |
+| Afronding | van blok tot cirkel |
+| Tussenruimte | 4 tot 36 px, geldt ook voor de marge langs de schermrand |
+| Knopgrootte | Mini tot XXL |
+| Kolommen | Auto of een vast aantal van 1 tot 6 |
+| Lettertype | 8 lettertypes, met een aparte schuif voor de tekstgrootte |
+
+Een palet zet de kleur van alle knoppen opnieuw. Wil je één knop een eigen
+kleur geven, zet dan het slotje open en tik die knop aan.
 
 ## Over de normalisatie
 

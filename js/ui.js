@@ -158,12 +158,17 @@
       root.setProperty('--pad-size', Math.round(size.pad * (0.85 + d.fontScale * 0.15)) + 'px');
       root.setProperty('--icon-size', Math.round(size.icon) + 'px');
       root.setProperty('--label-size', size.label + 'px');
+      root.setProperty('--pad-border', d.border + 'px');
+      root.setProperty('--pad-radius', (d.radius >= 999 ? 50 : d.radius) + (d.radius >= 999 ? '%' : 'px'));
+      root.setProperty('--gap', d.gap + 'px');
+      root.setProperty('--edge', Math.max(12, d.gap) + 'px');
       root.setProperty('--neon-a', pal.colors[0]);
       root.setProperty('--neon-a-rgb', hexToRgb(pal.colors[0]));
       root.setProperty('--neon-b', pal.colors[1] || pal.colors[0]);
       root.setProperty('--neon-b-rgb', hexToRgb(pal.colors[1] || pal.colors[0]));
 
       var board = $('board');
+      board.dataset.fill = d.fill || 'neon';
       board.className = 'board' + (d.columns !== 'auto' ? ' cols-' + d.columns : '') +
         (d.showLabels ? '' : ' no-labels') + (this.editing ? ' is-editing' : '');
 
@@ -511,6 +516,40 @@
       var palHint = el('p', 'hint', 'Een palet zet de kleur van alle knoppen opnieuw. ' +
         'Per knop een eigen kleur kiezen kan daarna via het slotje &rarr; knop aantikken.');
       body.lastChild.appendChild(palHint);
+
+      /* knopstijl */
+      body.style.setProperty('--c', S.find(S.PALETTES, d.palette).colors[0]);
+      body.style.setProperty('--c-rgb', hexToRgb(S.find(S.PALETTES, d.palette).colors[0]));
+      body.appendChild(this.field('KNOPSTIJL', '', this.chipRow(S.FILLS, d.fill, function (it) {
+        S.set('fill', it.id); self.applyTheme(); self.renderSettings();
+      }, function (it) {
+        return '<span class="chip-pal"><span class="fillprev" data-fill="' + it.id +
+          '"><i class="fillbox"></i></span>' + esc(it.name) + '</span>';
+      })));
+      body.lastChild.appendChild(el('p', 'hint',
+        'Bepaalt hoe de kleur over de knop wordt verdeeld. De kleur zelf komt uit ' +
+        'het palet hierboven, of uit wat je per knop hebt ingesteld.'));
+
+      /* randdikte */
+      body.appendChild(this.field('RANDDIKTE', d.border + ' PX',
+        this.chipRow(S.BORDERS, d.border, function (it) {
+          S.set('border', it.id); self.applyTheme(); self.renderSettings();
+        })));
+
+      /* afronding */
+      body.appendChild(this.field('AFRONDING', '',
+        this.chipRow(S.RADII, d.radius, function (it) {
+          S.set('radius', it.id); self.applyTheme(); self.renderSettings();
+        })));
+
+      /* tussenruimte */
+      body.appendChild(this.field('TUSSENRUIMTE', d.gap + ' PX',
+        this.chipRow(S.GAPS, d.gap, function (it) {
+          S.set('gap', it.id); self.applyTheme(); self.renderSettings();
+        })));
+      body.lastChild.appendChild(el('p', 'hint',
+        'Geldt voor de ruimte tussen de knoppen en voor de marge langs de rand ' +
+        'van het scherm.'));
 
       /* knopgrootte */
       body.appendChild(this.field('KNOPGROOTTE', '', this.chipRow(S.SIZES, d.size, function (it) {
