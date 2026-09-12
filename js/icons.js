@@ -103,6 +103,9 @@
   add('thumbup', 'Duim', ['duim', 'top', 'goed', 'like', 'ja'],
     '<path d="M7 10.4 11 3.2a2.2 2.2 0 0 1 3.2 2v3.6h4.6a2.2 2.2 0 0 1 2.1 2.8l-2 7A2.2 2.2 0 0 1 16.8 20H7z"/><rect x="2.2" y="10.4" width="4.8" height="9.6" rx="1.4"/>');
 
+  add('thumbdown', 'Duim omlaag', ['afkeuring', 'boe', 'slecht', 'nee', 'dislike', 'jammer'],
+    '<path d="M7 13.6 11 20.8a2.2 2.2 0 0 0 3.2-2v-3.6h4.6a2.2 2.2 0 0 0 2.1-2.8l-2-7A2.2 2.2 0 0 0 16.8 4H7z"/><rect x="2.2" y="4" width="4.8" height="9.6" rx="1.4"/>');
+
   add('check', 'Goed', ['goed', 'juist', 'correct', 'vinkje', 'ja'],
     '<path d="M4 12.8 9.4 18.2 20 6.4" stroke-width="2.4"/>');
 

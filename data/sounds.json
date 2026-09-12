@@ -24,15 +24,33 @@
       "label": "BA DUM TSS 2",
       "icon": "sticks",
       "color": "#b14aff",
-      "gainDb": 3.84,
+      "gainDb": 5.68,
       "duration": 2.928
+    },
+    {
+      "id": "afkeuring",
+      "file": "afkeuring.mp3",
+      "label": "AFKEURING",
+      "icon": "thumbdown",
+      "color": "#ffd400",
+      "gainDb": -7.79,
+      "duration": 16.692
+    },
+    {
+      "id": "toppunt",
+      "file": "toppunt.mp3",
+      "label": "TOPPUNT",
+      "icon": "crown",
+      "color": "#39ff88",
+      "gainDb": -14.44,
+      "duration": 6.687
     },
     {
       "id": "codetaal-quiz",
       "file": "codetaal-quiz.mp3",
       "label": "CODETAAL QUIZ",
       "icon": "question",
-      "color": "#ffd400",
+      "color": "#ff6a00",
       "gainDb": -2.41,
       "duration": 5.6
     },
@@ -41,16 +59,88 @@
       "file": "codetaal-quiz-2.mp3",
       "label": "CODETAAL QUIZ 2",
       "icon": "bulb",
-      "color": "#39ff88",
+      "color": "#2f6bff",
       "gainDb": -2.43,
       "duration": 6.814
+    },
+    {
+      "id": "whatsapp-15-14",
+      "file": "whatsapp-15-14.mp3",
+      "label": "WHATSAPP 15:14",
+      "icon": "chat",
+      "color": "#ff3355",
+      "gainDb": 22.22,
+      "duration": 3.093
+    },
+    {
+      "id": "whatsapp-15-17",
+      "file": "whatsapp-15-17.mp3",
+      "label": "WHATSAPP 15:17",
+      "icon": "chat",
+      "color": "#ff2d95",
+      "gainDb": 20.67,
+      "duration": 2.837
+    },
+    {
+      "id": "whatsapp-15-29",
+      "file": "whatsapp-15-29.mp3",
+      "label": "WHATSAPP 15:29",
+      "icon": "chat",
+      "color": "#00e5ff",
+      "gainDb": 18.77,
+      "duration": 2.304
+    },
+    {
+      "id": "whatsapp-16-50",
+      "file": "whatsapp-16-50.mp3",
+      "label": "WHATSAPP 16:50",
+      "icon": "chat",
+      "color": "#b14aff",
+      "gainDb": 13.97,
+      "duration": 2.475
+    },
+    {
+      "id": "whatsapp-16-53",
+      "file": "whatsapp-16-53.mp3",
+      "label": "WHATSAPP 16:53",
+      "icon": "chat",
+      "color": "#ffd400",
+      "gainDb": 12.99,
+      "duration": 1.899
+    },
+    {
+      "id": "it-was-a-good-day",
+      "file": "it-was-a-good-day.mp3",
+      "label": "IT WAS A GOOD DAY",
+      "icon": "cool",
+      "color": "#39ff88",
+      "gainDb": -1.3,
+      "duration": 2.88
+    },
+    {
+      "id": "1000-good-intentions",
+      "file": "1000-good-intentions.mp3",
+      "label": "1000 GOOD INTENTIONS",
+      "icon": "star",
+      "color": "#ff6a00",
+      "gainDb": -1.18,
+      "duration": 5.141
+    },
+    {
+      "id": "rodriguez",
+      "file": "rodriguez.mp3",
+      "label": "RODRIGUEZ",
+      "icon": "guitar",
+      "color": "#2f6bff",
+      "gainDb": 0.46,
+      "duration": 29.867
     },
     {
       "id": "loyal-friends",
       "file": "loyal-friends.mp3",
       "label": "LOYAL FRIENDS",
       "icon": "heart",
-      "color": "#ff6a00",
+      "color": "#ff3355",
       "gainDb": -2.1,
       "duration": 159.613
     },
@@ -59,7 +149,7 @@
       "file": "diamonds-on-the-soles.mp3",
       "label": "DIAMONDS",
       "icon": "diamond",
-      "color": "#2f6bff",
+      "color": "#ff2d95",
       "gainDb": -2.41,
       "duration": 208.76
     }

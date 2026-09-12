@@ -69,7 +69,15 @@ opgeslagen bestanden weggooit en opnieuw laadt (je instellingen blijven staan).
 
 ## Geluiden toevoegen of vervangen
 
-1. Zet het audiobestand (`.mp3`, `.ogg`, `.wav` of `.m4a`) in `audio/`.
+1. Zet het audiobestand in `audio/`. Gebruik **mp3**: dat werkt in elke
+   browser. AAC (`.m4a`, en het audiospoor van een `.mp4`) wordt niet overal
+   ondersteund — Chromium-builds zonder propriëtaire codecs weigeren het.
+   Omzetten kan zonder gedoe:
+
+   ```bash
+   ffmpeg -i opname.m4a -c:a libmp3lame -b:a 192k audio/opname.mp3
+   ffmpeg -i filmpje.mp4 -vn -ac 1 -c:a libmp3lame -b:a 160k audio/filmpje.mp3
+   ```
 2. Meet de luidheid en werk het manifest bij:
 
    ```bash
@@ -113,17 +121,39 @@ luidheid maar hoge pieken. Daarom geldt er een piekplafond van +3 dBFS: de
 correctie wordt nooit verder opgedraaid dan dat. Een limiter op de master vangt
 de rest op wanneer je meerdere geluiden tegelijk indrukt.
 
-Gemeten waarden bij oplevering:
+Dat plafond kijkt naar het **99,9e percentiel** van de golfvorm, niet naar de
+absolute piek. Eén losse tik — de begintransiënt van een videobestand
+bijvoorbeeld — zou anders de correctie voor de hele opname blokkeren. Bij
+normaal materiaal schelen die twee minder dan een paar dB; bij zo'n uitschieter
+tientallen.
 
-| geluid | LUFS | correctie |
-|---|---|---|
-| BA DUM TSS | −19.85 | +3.85 dB |
-| BA DUM TSS 2 | −21.68 | +3.84 dB |
-| DIT IS DE ROAST | −13.25 | −2.75 dB |
-| CODETAAL QUIZ | −13.59 | −2.41 dB |
-| CODETAAL QUIZ 2 | −13.57 | −2.43 dB |
-| LOYAL FRIENDS | −13.90 | −2.10 dB |
-| DIAMONDS | −13.59 | −2.41 dB |
+Voor een opname die tientallen dB te stil is, is gain alleen niet genoeg: de
+correctie wordt begrensd op +24 dB. `tools/analyze_loudness.py` meldt zo'n
+bestand, en dan haalt `tools/normalize_file.py` het er eenmalig offline
+doorheen met ffmpeg loudnorm — die regelt de luidheid én begrenst de ware piek.
+Dat is de enige plek waar er wél opnieuw gecodeerd wordt.
+
+Gemeten waarden:
+
+| geluid | duur | gemeten LUFS | correctie |
+|---|---|---|---|
+| DIT IS DE ROAST | 10.0s | -13.25 | -2.75 dB |
+| BA DUM TSS | 1.9s | -19.85 | +3.85 dB |
+| BA DUM TSS 2 | 2.9s | -21.68 | +5.68 dB |
+| AFKEURING | 16.7s | -8.21 | -7.79 dB |
+| TOPPUNT | 6.7s | -1.56 | -14.44 dB |
+| CODETAAL QUIZ | 5.6s | -13.59 | -2.41 dB |
+| CODETAAL QUIZ 2 | 6.8s | -13.57 | -2.43 dB |
+| WHATSAPP 15:14 | 3.1s | -38.22 | +22.22 dB |
+| WHATSAPP 15:17 | 2.8s | -36.67 | +20.67 dB |
+| WHATSAPP 15:29 | 2.3s | -34.77 | +18.77 dB |
+| WHATSAPP 16:50 | 2.5s | -29.97 | +13.97 dB |
+| WHATSAPP 16:53 | 1.9s | -28.99 | +12.99 dB |
+| IT WAS A GOOD DAY | 2.9s | -14.7 | -1.30 dB |
+| 1000 GOOD INTENTIONS | 5.1s | -14.82 | -1.18 dB |
+| RODRIGUEZ | 29.9s | -16.46 | +0.46 dB |
+| LOYAL FRIENDS | 159.6s | -13.9 | -2.10 dB |
+| DIAMONDS | 208.8s | -13.59 | -2.41 dB |
 
 ## Opbouw
 
