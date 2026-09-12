@@ -48,9 +48,20 @@ lege plekken onzichtbaar — ze houden hun ruimte wel vast, zodat de indeling
 blijft staan zoals je hem hebt gemaakt.
 
 In de bewerkmodus staan er onder je knoppen altijd een paar lege plekken klaar
-om naartoe te slepen. Lege plekken haal je in één keer weg via
+om naartoe te slepen. Liever niet slepen? Tik een knop aan en gebruik
+**Lege plek ervoor** of **Lege plek erna** — dat schuift de knoppen erachter een
+plaats op. Alle gaten haal je in één keer weg via
 **Instellingen → Lege plekken → Lege plekken opruimen**. Ze werken het best met
 een vast aantal kolommen; op AUTO schuift het rooster mee met de schermbreedte.
+
+## Updates
+
+De service worker haalt bestanden op met revalidatie, zodat een nieuwe versie
+meteen doorkomt in plaats van achter de cache van GitHub Pages te blijven
+hangen. Draait er al een oudere versie, dan verschijnt onderin **NIEUWE VERSIE
+KLAAR** met een knop om te vernieuwen. Welke versie je draait staat in
+**Instellingen → Versie**; daar zit ook **Nieuwste versie ophalen**, dat de
+opgeslagen bestanden weggooit en opnieuw laadt (je instellingen blijven staan).
 
 ## Geluiden toevoegen of vervangen
 

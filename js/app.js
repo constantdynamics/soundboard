@@ -4,6 +4,8 @@
 (function (global) {
   'use strict';
 
+  global.APP_VERSION = '2026.09.12';
+
   var S = global.Settings, E = global.AudioEngine, UI = global.UI;
   var splash = document.getElementById('splash');
   var btn = document.getElementById('splash-btn');
@@ -89,9 +91,39 @@
     }).catch(function () { /* mag mislukken, is een extraatje */ });
   }
 
+  /* ---- nieuwe versie opmerken en aanbieden ----------------------- */
+  var bar = document.getElementById('update-bar');
+  var waiting = null;
+
+  function offerUpdate(worker) {
+    waiting = worker;
+    bar.hidden = false;
+  }
+
+  document.getElementById('update-now').addEventListener('click', function () {
+    bar.hidden = true;
+    if (waiting) waiting.postMessage('skip-waiting');
+    global.location.reload();
+  });
+  document.getElementById('update-later').addEventListener('click', function () {
+    bar.hidden = true;
+  });
+
   if ('serviceWorker' in navigator) {
     global.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        if (reg.waiting && navigator.serviceWorker.controller) offerUpdate(reg.waiting);
+        reg.addEventListener('updatefound', function () {
+          var sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', function () {
+            // Alleen melden als er al een versie draaide; bij de eerste
+            // installatie valt er niets te vernieuwen.
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) offerUpdate(sw);
+          });
+        });
+        setInterval(function () { reg.update().catch(function () {}); }, 15 * 60 * 1000);
+      }).catch(function () {});
     });
   }
 })(window);

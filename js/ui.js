@@ -324,6 +324,16 @@
       return best;
     },
 
+    /** Schuift een lege plek in het rooster op deze positie. */
+    insertGap: function (at) {
+      var o = S.data.order.slice();
+      at = clamp(at, 0, o.length);
+      o.splice(at, 0, null);
+      S.data.order = trimTail(o);
+      S.save();
+      this.renderBoard();
+    },
+
     /** Verhuist de knop van de ene plek naar de andere. */
     moveToSlot: function (from, to) {
       if (isNaN(from) || isNaN(to) || from === to) return;
@@ -410,6 +420,7 @@
       this.editing = force === undefined ? !this.editing : force;
       $('btn-edit').setAttribute('aria-pressed', String(this.editing));
       $('btn-edit-label').textContent = this.editing ? 'LOS' : 'VAST';
+      $('edit-hint').hidden = !this.editing;
       this.renderBoard();
       if (!this.editing) this.closeSheets();
     },
@@ -589,10 +600,39 @@
         'Exporteren geeft je een JSON-bestand als reservekopie of om op een ander apparaat te gebruiken.'));
       body.appendChild(profField);
 
+      /* versie */
+      var verRow = el('div', 'row');
+      var refresh = el('button', 'btn', 'NIEUWSTE VERSIE OPHALEN');
+      refresh.type = 'button';
+      refresh.addEventListener('click', function () { self.hardRefresh(); });
+      verRow.appendChild(refresh);
+      body.appendChild(this.field('VERSIE', global.APP_VERSION || '?', verRow));
+      body.lastChild.appendChild(el('p', 'hint',
+        'Gooit de opgeslagen bestanden weg en laadt de soundboard opnieuw. ' +
+        'Je instellingen blijven staan. De audio wordt daarna opnieuw opgehaald.'));
+
       /* over */
       body.appendChild(el('p', 'hint',
         'Alle geluiden zijn genormaliseerd op &minus;16 LUFS (EBU R128). ' +
         'Wil je er eentje harder of zachter? Zet het slotje aan en tik de knop aan.'));
+    },
+
+    /** Caches en service worker wegdoen en opnieuw laden. */
+    hardRefresh: function () {
+      var done = [];
+      if (global.caches && caches.keys) {
+        done.push(caches.keys().then(function (keys) {
+          return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+        }));
+      }
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        done.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+          return Promise.all(rs.map(function (r) { return r.unregister(); }));
+        }));
+      }
+      Promise.all(done).catch(function () {}).then(function () {
+        global.location.reload();
+      });
     },
 
     exportProfile: function () {
@@ -748,12 +788,26 @@
       right.type = 'button';
       right.addEventListener('click', function () { self.move(id, 1); self.renderPadSheet(); });
       moveRow.appendChild(left); moveRow.appendChild(right);
-      body.appendChild(this.field('PLEK IN HET ROOSTER',
-        'PLEK ' + (pos + 1) + ' VAN ' + S.data.order.length, moveRow));
-      body.lastChild.appendChild(el('p', 'hint',
-        'Zolang het slotje open staat kun je knoppen ook gewoon verslepen. ' +
-        'Laat je er eentje op een lege plek los, dan verhuist hij daarheen en blijft ' +
-        'zijn oude plek open. Laat je hem op een andere knop los, dan wisselen ze om.'));
+      var plekField = this.field('PLEK IN HET ROOSTER',
+        'PLEK ' + (pos + 1) + ' VAN ' + S.data.order.length, moveRow);
+
+      var gapRow = el('div', 'row');
+      gapRow.style.marginTop = '8px';
+      var gapBefore = el('button', 'btn', 'LEGE PLEK ERVOOR');
+      gapBefore.type = 'button';
+      gapBefore.addEventListener('click', function () { self.insertGap(pos); self.renderPadSheet(); });
+      var gapAfter = el('button', 'btn', 'LEGE PLEK ERNA');
+      gapAfter.type = 'button';
+      gapAfter.addEventListener('click', function () { self.insertGap(pos + 1); self.renderPadSheet(); });
+      gapRow.appendChild(gapBefore); gapRow.appendChild(gapAfter);
+      plekField.appendChild(gapRow);
+
+      plekField.appendChild(el('p', 'hint',
+        'Een lege plek schuift de knoppen erachter een plaats op, zodat je bijvoorbeeld ' +
+        'het midden van een rij kunt openlaten. Slepen kan ook: zolang het slotje open ' +
+        'staat verhuist een knop naar het streepjesvak waar je hem loslaat, en blijft ' +
+        'zijn oude plek open. Laat je hem op een andere knop los, dan wisselen die twee om.'));
+      body.appendChild(plekField);
     },
 
     refreshPad: function (id) {

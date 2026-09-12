@@ -185,6 +185,16 @@ h1, h2, h3, p { margin: 0; }
 
 .board-empty { text-align: center; color: var(--ink-dim); padding: 30px; font-size: 13px; }
 
+.edit-hint {
+  position: relative; z-index: 1;
+  margin: 0 calc(var(--safe-r) + 14px) 10px calc(var(--safe-l) + 14px);
+  padding: 10px 12px; border-radius: 12px;
+  border: 1px solid rgba(var(--neon-b-rgb), .45);
+  background: rgba(var(--neon-b-rgb), .09);
+  color: var(--ink-dim); font-size: 10px; line-height: 1.55; letter-spacing: .04em;
+}
+.edit-hint b { color: #fff; font-weight: inherit; }
+
 .pad-wrap {
   position: relative;
   display: flex; flex-direction: column; align-items: center; gap: 7px;
@@ -278,9 +288,20 @@ h1, h2, h3, p { margin: 0; }
 .pad-slot-box { width: 100%; aspect-ratio: 1; border-radius: 22px; }
 
 .board.is-editing .pad-slot-box {
-  border: 2px dashed rgba(255, 255, 255, .2);
-  background: rgba(255, 255, 255, .022);
+  position: relative;
+  border: 2px dashed rgba(255, 255, 255, .3);
+  background: rgba(255, 255, 255, .035);
 }
+/* plusje, zodat duidelijk is dat je hier iets naartoe kunt slepen */
+.board.is-editing .pad-slot-box::before,
+.board.is-editing .pad-slot-box::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  background: rgba(255, 255, 255, .3); border-radius: 2px;
+}
+.board.is-editing .pad-slot-box::before { width: 22px; height: 2.5px; transform: translate(-50%, -50%); }
+.board.is-editing .pad-slot-box::after  { width: 2.5px; height: 22px; transform: translate(-50%, -50%); }
+.pad-slot.is-drop-target .pad-slot-box::before,
+.pad-slot.is-drop-target .pad-slot-box::after { background: #fff; }
 
 /* waar je nu zou loslaten */
 .pad-slot.is-drop-target .pad-slot-box {
@@ -384,6 +405,29 @@ input[type="range"]::-moz-range-thumb {
   background: rgba(var(--neon-b-rgb), .14);
 }
 .dock-btn[aria-pressed="true"] .shackle { transform: translateX(3px) rotate(0deg); }
+
+/* ---------- melding bij een nieuwe versie ------------------------- */
+.update-bar {
+  position: fixed; z-index: 60;
+  left: calc(var(--safe-l) + 12px); right: calc(var(--safe-r) + 12px);
+  bottom: calc(var(--dock-h) + var(--safe-b) + 10px);
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 10px 10px 14px; border-radius: 14px;
+  background: rgba(12, 2, 24, .97);
+  border: 1.5px solid var(--neon-b);
+  box-shadow: 0 0 22px rgba(var(--neon-b-rgb), .45), 0 10px 30px rgba(0, 0, 0, .7);
+  animation: sheet-up .3s cubic-bezier(.2, .9, .3, 1);
+}
+.update-bar > span { flex: 1; font-size: 10px; letter-spacing: .18em; color: var(--ink-dim); }
+.update-bar #update-now {
+  padding: 9px 14px; border-radius: 10px;
+  border: 1.5px solid var(--neon-b); background: rgba(var(--neon-b-rgb), .18);
+  color: #fff; font-size: 10px; letter-spacing: .14em;
+}
+.update-bar #update-later {
+  width: 30px; height: 30px; border-radius: 50%;
+  font-size: 20px; line-height: 1; color: var(--ink-faint);
+}
 
 /* ---------- panelen ---------------------------------------------- */
 .scrim { position: fixed; inset: 0; z-index: 40; background: rgba(4, 0, 10, .74);

@@ -44,6 +44,12 @@
   </div>
 </header>
 
+<p class="edit-hint" id="edit-hint" hidden>
+  Sleep een knop naar een <b>streepjesvak</b> om hem te verplaatsen en zijn oude
+  plek leeg te laten. Op een andere knop loslaten wisselt de twee om.
+  Tik een knop aan voor naam, icoon, kleur en volume.
+</p>
+
 <main class="board" id="board" aria-label="Geluidsknoppen"></main>
 <p class="board-empty" id="board-empty" hidden>Geen geluiden gevonden.</p>
 
@@ -84,6 +90,12 @@
     <span>INSTELLINGEN</span>
   </button>
 </nav>
+
+<div class="update-bar" id="update-bar" hidden>
+  <span>NIEUWE VERSIE KLAAR</span>
+  <button type="button" id="update-now">VERNIEUWEN</button>
+  <button type="button" id="update-later" aria-label="Later">&times;</button>
+</div>
 
 <!-- ------------------------------------------------------------- -->
 <div class="scrim" id="scrim" hidden></div>
