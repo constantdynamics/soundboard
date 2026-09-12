@@ -24,6 +24,17 @@
       "sampleRate": 44100,
       "channels": 2
     },
+    "als-ge-dit-ziet.mp3": {
+      "lufs": -16.77,
+      "momentaryMax": -13.96,
+      "peakDb": -1.72,
+      "workPeakDb": -3.71,
+      "gainDb": 0.77,
+      "peakAfterDb": -0.95,
+      "duration": 6.0,
+      "sampleRate": 48000,
+      "channels": 1
+    },
     "ba-dum-tss-2.mp3": {
       "lufs": -21.68,
       "momentaryMax": -16.16,
@@ -124,13 +135,13 @@
       "channels": 1
     },
     "toppunt.mp3": {
-      "lufs": -1.56,
-      "momentaryMax": 1.8,
-      "peakDb": 2.37,
-      "workPeakDb": 0.96,
-      "gainDb": -14.44,
-      "peakAfterDb": -12.07,
-      "duration": 6.687,
+      "lufs": -2.32,
+      "momentaryMax": -1.29,
+      "peakDb": 1.31,
+      "workPeakDb": 0.45,
+      "gainDb": -13.68,
+      "peakAfterDb": -12.37,
+      "duration": 0.76,
       "sampleRate": 44100,
       "channels": 2
     },

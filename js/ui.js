@@ -27,6 +27,9 @@
   }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
+  /* Hoe lang je een knop moet vasthouden om hem te bewerken. */
+  var HOLD_MS = 450;
+
   /** Lege plekken achteraan hebben geen zin; die halen we weg. */
   function trimTail(order) {
     var i = order.length;
@@ -100,7 +103,10 @@
       // De volgorde is een rooster van plekken: elke plek bevat een geluid
       // of is leeg (null). Onbekende of dubbele namen worden een lege plek,
       // zodat de indeling heel blijft als er een geluid verdwijnt.
+      var archived = (S.data.archived || []).filter(function (id) { return self.byId[id]; });
+      S.data.archived = archived;
       var seen = {};
+      archived.forEach(function (id) { seen[id] = 1; });
       var order = (S.data.order || []).map(function (id) {
         if (id && self.byId[id] && !seen[id]) { seen[id] = 1; return id; }
         return null;
@@ -216,6 +222,7 @@
       pad.type = 'button';
       pad.setAttribute('aria-label', d.label);
       pad.innerHTML = ICONS.svg(d.icon) +
+        '<span class="pad-hold"></span>' +
         '<span class="pad-prog"></span><span class="pad-voices">1</span>';
 
       var fade = el('button', 'pad-fade', FADE_SVG);
@@ -238,22 +245,57 @@
 
     bindPad: function (wrap, pad, fade) {
       var self = this, id = wrap.dataset.id;
+      var holdTimer = null, held = false;
 
       fade.addEventListener('click', function (ev) {
         ev.stopPropagation();
         E.fade(id, S.data.fade);
       });
 
+      function stopHold() {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+        pad.classList.remove('is-holding');
+      }
+
       pad.addEventListener('click', function () {
-        if (self.editing) return;                 // in bewerkmodus doet slepen/tikken iets anders
+        if (self.editing) return;        // in bewerkmodus doet slepen/tikken iets anders
+        if (held) { held = false; return; }   // dit was een lange druk, niet afspelen
         self.trigger(id, pad);
       });
 
-      // Slepen (alleen in bewerkmodus). Tik zonder beweging = bewerken.
       pad.addEventListener('pointerdown', function (ev) {
-        if (!self.editing || ev.button > 0) return;
-        self.startDrag(ev, wrap, pad);
+        if (ev.button > 0) return;
+        if (self.editing) { self.startDrag(ev, wrap, pad); return; }
+
+        // Lang ingedrukt houden opent het bewerkscherm, ook met het slotje dicht.
+        held = false;
+        var x0 = ev.clientX, y0 = ev.clientY;
+        pad.classList.add('is-holding');
+        holdTimer = setTimeout(function () {
+          holdTimer = null;
+          held = true;
+          pad.classList.remove('is-holding');
+          self.openPadSheet(id);
+        }, HOLD_MS);
+
+        function moved(e) {
+          if (Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) > 12) stopHold();
+        }
+        function done() {
+          stopHold();
+          pad.removeEventListener('pointermove', moved);
+          pad.removeEventListener('pointerup', done);
+          pad.removeEventListener('pointercancel', done);
+          pad.removeEventListener('pointerleave', done);
+        }
+        pad.addEventListener('pointermove', moved);
+        pad.addEventListener('pointerup', done);
+        pad.addEventListener('pointercancel', done);
+        pad.addEventListener('pointerleave', done);
       });
+
+      // Geen vergrootglas of snelmenu bij lang indrukken.
+      pad.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
     },
 
     trigger: function (id, pad) {
@@ -275,7 +317,8 @@
     startDrag: function (ev, wrap, pad) {
       var self = this;
       var startX = ev.clientX, startY = ev.clientY;
-      var moved = false, target = null;
+      var moved = false, target = null, overTrash = false;
+      var trash = $('trash');
 
       function highlight(next) {
         if (target === next) return;
@@ -286,10 +329,15 @@
 
       function move(e) {
         if (!moved && Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) < 9) return;
-        if (!moved) { moved = true; wrap.classList.add('dragging'); }
+        if (!moved) { moved = true; wrap.classList.add('dragging'); trash.hidden = false; }
         wrap.style.transform = 'translate(' + (e.clientX - startX) + 'px,' +
           (e.clientY - startY) + 'px)';
-        highlight(self.slotUnder(e.clientX, e.clientY, wrap));
+
+        var t = trash.getBoundingClientRect();
+        overTrash = e.clientX >= t.left - 20 && e.clientX <= t.right + 20 &&
+                    e.clientY >= t.top - 20 && e.clientY <= t.bottom + 20;
+        trash.classList.toggle('is-over', overTrash);
+        highlight(overTrash ? null : self.slotUnder(e.clientX, e.clientY, wrap));
       }
 
       function up() {
@@ -298,11 +346,15 @@
         pad.removeEventListener('pointercancel', up);
         wrap.classList.remove('dragging');
         wrap.style.transform = '';
+        trash.hidden = true;
+        trash.classList.remove('is-over');
         var drop = target;
         highlight(null);
 
         if (!moved) {
           self.openPadSheet(wrap.dataset.id);      // tik = knop bewerken
+        } else if (overTrash) {
+          self.archive(wrap.dataset.id);
         } else if (drop) {
           self.moveToSlot(parseInt(wrap.dataset.slot, 10), parseInt(drop.dataset.slot, 10));
         }
@@ -327,6 +379,29 @@
         if (d < bestD) { bestD = d; best = c; }
       }
       return best;
+    },
+
+    /** Haalt een knop van het bord en bewaart hem in het archief. */
+    archive: function (id) {
+      E.fade(id, 0.25);
+      var i = S.data.order.indexOf(id);
+      if (i >= 0) S.data.order[i] = null;          // laat zijn plek open
+      S.data.order = trimTail(S.data.order);
+      if (S.data.archived.indexOf(id) < 0) S.data.archived.push(id);
+      S.save();
+      this.closeSheets();
+      this.renderBoard();
+    },
+
+    /** Zet een gearchiveerde knop terug, op de eerste vrije plek. */
+    unarchive: function (id) {
+      var k = S.data.archived.indexOf(id);
+      if (k >= 0) S.data.archived.splice(k, 1);
+      var slot = S.data.order.indexOf(null);
+      if (slot >= 0) S.data.order[slot] = id;
+      else S.data.order.push(id);
+      S.save();
+      this.renderBoard();
     },
 
     /** Schuift een lege plek in het rooster op deze positie. */
@@ -639,6 +714,32 @@
         'Exporteren geeft je een JSON-bestand als reservekopie of om op een ander apparaat te gebruiken.'));
       body.appendChild(profField);
 
+      /* archief */
+      var arch = (S.data.archived || []).filter(function (id) { return self.byId[id]; });
+      var archBox = el('div');
+      if (!arch.length) {
+        archBox.appendChild(el('p', 'hint',
+          'Nog niets gearchiveerd. Zet het slotje open en sleep een knop naar de ' +
+          'prullenbak onderin, of houd een knop ingedrukt en kies NAAR ARCHIEF.'));
+      } else {
+        arch.forEach(function (id) {
+          var d = self.get(id);
+          var row = el('div', 'arch-row');
+          row.style.setProperty('--c', d.color);
+          row.style.setProperty('--c-rgb', hexToRgb(d.color));
+          row.innerHTML = '<span class="arch-ico">' + ICONS.svg(d.icon) + '</span>' +
+            '<span class="arch-name">' + esc(d.label) + '</span>';
+          var back = el('button', 'btn', 'TERUG');
+          back.type = 'button';
+          back.style.flex = 'none';
+          back.addEventListener('click', function () { self.unarchive(id); self.renderSettings(); });
+          row.appendChild(back);
+          archBox.appendChild(row);
+        });
+      }
+      body.appendChild(this.field('ARCHIEF',
+        arch.length ? arch.length + (arch.length === 1 ? ' KNOP' : ' KNOPPEN') : 'LEEG', archBox));
+
       /* versie */
       var verRow = el('div', 'row');
       var refresh = el('button', 'btn', 'NIEUWSTE VERSIE OPHALEN');
@@ -741,7 +842,11 @@
         prev.innerHTML = '';
         prev.appendChild(self.padEl(self.get(id)));
       });
-      body.appendChild(this.field('NAAM', '', name));
+      var naamField = this.field('NAAM', '', name);
+      naamField.appendChild(el('p', 'hint',
+        'Dit scherm open je ook zonder het slotje: houd een knop op het bord ' +
+        'even ingedrukt.'));
+      body.appendChild(naamField);
 
       /* icoon */
       var iconBtn = el('button', 'icon-current',
@@ -827,6 +932,18 @@
       right.type = 'button';
       right.addEventListener('click', function () { self.move(id, 1); self.renderPadSheet(); });
       moveRow.appendChild(left); moveRow.appendChild(right);
+      var archRow = el('div', 'row');
+      var archBtn = el('button', 'btn btn--danger', 'NAAR ARCHIEF');
+      archBtn.type = 'button';
+      archBtn.addEventListener('click', function () { self.archive(id); });
+      archRow.appendChild(archBtn);
+      var archField = this.field('VAN HET BORD HALEN', '', archRow);
+      archField.appendChild(el('p', 'hint',
+        'De knop verdwijnt van het bord maar blijft bewaard. Terugzetten kan via ' +
+        'Instellingen &rarr; Archief. Slepen kan ook: zet het slotje open en sleep de ' +
+        'knop naar de prullenbak die onderin verschijnt.'));
+      body.appendChild(archField);
+
       var plekField = this.field('PLEK IN HET ROOSTER',
         'PLEK ' + (pos + 1) + ' VAN ' + S.data.order.length, moveRow);
 

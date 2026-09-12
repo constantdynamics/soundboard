@@ -115,6 +115,7 @@
       timerTarget: 420,
       showLabels: true,
       order: [],
+      archived: [],
       sounds: {}        // id -> { label, icon, color, trimDb }
     };
   }
@@ -145,7 +146,7 @@
       Object.keys(base).forEach(function (k) {
         if (saved[k] === undefined || saved[k] === null) return;
         if (k === 'sounds' && typeof saved[k] === 'object') base[k] = saved[k];
-        else if (k === 'order' && Array.isArray(saved[k])) base[k] = saved[k];
+        else if ((k === 'order' || k === 'archived') && Array.isArray(saved[k])) base[k] = saved[k];
         else if (typeof base[k] !== 'object') base[k] = saved[k];
       });
       return base;

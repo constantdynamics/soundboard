@@ -31,6 +31,9 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
 - **Lege plekken in het rooster.** De indeling is een rooster van plekken die
   ook leeg mogen zijn, dus je kunt bijvoorbeeld het midden van een rij van drie
   openlaten.
+- **Archief.** Knoppen die je even niet nodig hebt sleep je naar de prullenbak
+  of zet je weg via het bewerkscherm. Ze verdwijnen van het bord maar blijven
+  bewaard, en komen via Instellingen &rarr; Archief weer terug.
 - **Werkt offline.** Na één keer laden draait de soundboard zonder internet.
   Op je telefoon kun je hem aan je beginscherm toevoegen.
 
@@ -42,9 +45,11 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
 | Fade-knopje op een spelende knop | alleen dat geluid uitfaden |
 | **STOP** | alles uitfaden |
 | **Slotje** | bewerkmodus aan/uit |
-| Knop aantikken in bewerkmodus | naam, icoon, kleur, volume en plek aanpassen |
+| Knop ingedrukt houden | naam, icoon, kleur, volume en plek aanpassen — ook met het slotje dicht |
+| Knop aantikken in bewerkmodus | hetzelfde bewerkscherm |
 | Knop naar een lege plek slepen | verhuist daarheen, oude plek blijft open |
 | Knop op een andere knop slepen | die twee wisselen om |
+| Knop naar de prullenbak slepen | gaat naar het archief, blijft bewaard |
 | Timer aantikken | starten / pauzeren |
 
 Buiten de bewerkmodus kun je niets per ongeluk verslepen of veranderen, en zijn
