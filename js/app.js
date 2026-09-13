@@ -4,7 +4,7 @@
 (function (global) {
   'use strict';
 
-  global.APP_VERSION = '2026.09.13';
+  global.APP_VERSION = '2026.09.13-2';
 
   var S = global.Settings, E = global.AudioEngine, UI = global.UI;
   var splash = document.getElementById('splash');

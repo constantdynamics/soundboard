@@ -274,6 +274,53 @@
       return any;
     },
 
+    /* ---- alles offline klaarzetten ------------------------------ */
+
+    /** De urls zoals de app ze opvraagt, inclusief de inhoudshash. */
+    audioUrls: function () {
+      var self = this;
+      return Object.keys(this.defs).map(function (id) {
+        var d = self.defs[id];
+        return (self.base || 'audio/') + d.file + (d.hash ? '?v=' + d.hash : '');
+      });
+    },
+
+    /** Hoeveel van de geluiden staan al opgeslagen? */
+    cacheStatus: function () {
+      var urls = this.audioUrls();
+      if (!global.caches || !global.caches.match) {
+        return Promise.resolve({ have: 0, total: urls.length, supported: false });
+      }
+      return Promise.all(urls.map(function (u) {
+        return caches.match(u).then(function (r) { return r ? 1 : 0; })
+          .catch(function () { return 0; });
+      })).then(function (hits) {
+        var n = 0;
+        hits.forEach(function (h) { n += h; });
+        return { have: n, total: urls.length, supported: true };
+      });
+    },
+
+    /** Haalt alles binnen dat er nog niet is. Eén voor één, zodat een
+        telefoon niet twintig downloads tegelijk hoeft te openen. */
+    cacheAll: function (onProgress) {
+      var urls = this.audioUrls(), done = 0, mislukt = 0;
+      var chain = Promise.resolve();
+      urls.forEach(function (u) {
+        chain = chain.then(function () {
+          return fetch(u).then(function (r) {
+            if (!r.ok) throw new Error(r.status);
+            return r.arrayBuffer();          // helemaal uitlezen, niet alleen de kop
+          }).catch(function () { mislukt++; })
+            .then(function () {
+              done++;
+              if (onProgress) onProgress(done, urls.length, mislukt);
+            });
+        });
+      });
+      return chain.then(function () { return { total: urls.length, failed: mislukt }; });
+    },
+
     /* ---- status voor de interface ------------------------------ */
     isPlaying: function (id) { return this.voiceCount(id) > 0; },
 

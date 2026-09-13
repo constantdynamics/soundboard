@@ -36,7 +36,10 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
   of zet je weg via het bewerkscherm. Ze verdwijnen van het bord maar blijven
   bewaard, en komen via Instellingen &rarr; Archief weer terug.
 - **Werkt offline.** Na één keer laden draait de soundboard zonder internet.
-  Op je telefoon kun je hem aan je beginscherm toevoegen.
+  Bovenaan de instellingen staat **Offline klaarzetten**: die laat zien of alle
+  geluiden al in je toestel staan en haalt met één druk binnen wat er nog
+  ontbreekt. Handig vlak voor een speech. Op je telefoon kun je de soundboard
+  aan je beginscherm toevoegen.
 
 ## Bediening
 
@@ -150,6 +153,11 @@ wil je daar toch niet.
 De service worker snijdt voor gestreamde bestanden zelf het gevraagde stuk uit
 de opgeslagen kopie en antwoordt met een 206, zodat doorspoelen werkt en alles
 ook zonder internet blijft spelen.
+
+Hoeveel een browser van een gestreamd bestand vooruit laadt bepaalt hij zelf,
+en op mobiel is dat zuinig. **Instellingen &rarr; Offline klaarzetten** haalt
+daarom elk bestand in zijn geheel op en zet het in de cache. Daarna staat alles
+gegarandeerd lokaal, ook het einde van een nummer van drie minuten.
 
 ## Over de normalisatie
 

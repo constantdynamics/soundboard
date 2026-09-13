@@ -550,6 +550,10 @@
       var self = this, body = $('settings-body'), d = S.data;
       body.innerHTML = '';
 
+      /* offline klaarzetten - staat bovenaan, want dit check je vlak
+         voor een speech en niet ergens onderin een lijst */
+      this.renderOffline(body);
+
       /* lettertype */
       body.appendChild(this.field('LETTERTYPE', '', this.chipRow(S.FONTS, d.font, function (it) {
         S.set('font', it.id); self.applyTheme(); self.renderSettings();
@@ -772,6 +776,63 @@
       }
       Promise.all(done).catch(function () {}).then(function () {
         global.location.reload();
+      });
+    },
+
+    /** Toont of alle geluiden al opgeslagen zijn, met een knop om de rest
+        binnen te halen. */
+    renderOffline: function (body) {
+      var self = this;
+      var box = el('div', 'offline-box');
+      var line = el('div', 'offline-line', 'CONTROLEREN…');
+      var bar = el('div', 'offline-bar', '<i></i>');
+      var btn = el('button', 'btn btn--accent', 'ALLES NU DOWNLOADEN');
+      btn.type = 'button';
+      btn.disabled = true;
+      box.appendChild(line);
+      box.appendChild(bar);
+      box.appendChild(btn);
+
+      var field = this.field('OFFLINE KLAARZETTEN', '', box);
+      field.appendChild(el('p', 'hint',
+        'Korte geluiden staan na het opstarten al volledig in je toestel. ' +
+        'Bij de lange nummers bepaalt de browser zelf hoeveel hij vooruit ' +
+        'laadt. Druk hierop voordat je begint, dan staat echt alles klaar en ' +
+        'maakt het niet uit of de wifi het houdt.'));
+      body.appendChild(field);
+
+      function toon(st) {
+        var klaar = st.have >= st.total;
+        box.classList.toggle('is-klaar', klaar);
+        bar.firstChild.style.width = (st.total ? st.have / st.total * 100 : 0) + '%';
+        line.textContent = !st.supported
+          ? 'DEZE BROWSER SLAAT NIETS OP'
+          : (klaar ? 'ALLES STAAT KLAAR — ' + st.total + ' GELUIDEN'
+                   : st.have + ' VAN ' + st.total + ' KLAAR');
+        btn.disabled = !st.supported || klaar;
+        btn.textContent = klaar ? 'NIETS MEER TE DOEN' : 'ALLES NU DOWNLOADEN';
+      }
+
+      E.cacheStatus().then(toon).catch(function () {
+        toon({ have: 0, total: 0, supported: false });
+      });
+
+      btn.addEventListener('click', function () {
+        btn.disabled = true;
+        E.cacheAll(function (done, total, mislukt) {
+          line.textContent = 'DOWNLOADEN… ' + done + ' VAN ' + total +
+            (mislukt ? '  (' + mislukt + ' MISLUKT)' : '');
+          bar.firstChild.style.width = (done / total * 100) + '%';
+        }).then(function (r) {
+          if (r.failed) {
+            line.textContent = r.failed + ' VAN ' + r.total + ' MISLUKT — OPNIEUW PROBEREN';
+            btn.disabled = false;
+            btn.textContent = 'OPNIEUW PROBEREN';
+            box.classList.remove('is-klaar');
+          } else {
+            E.cacheStatus().then(toon);
+          }
+        });
       });
     },
 
