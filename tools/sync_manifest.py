@@ -17,6 +17,13 @@ AUDIO_DIR = os.path.join(ROOT, "audio")
 LOUDNESS = os.path.join(ROOT, "data", "loudness.json")
 MANIFEST = os.path.join(ROOT, "data", "sounds.json")
 
+# Geluiden langer dan dit worden gestreamd in plaats van vooraf gedecodeerd.
+# Een gedecodeerde minuut stereo kost ongeveer 22 MB werkgeheugen; met een
+# handvol volledige nummers loopt dat op tot honderden megabytes, en dat is op
+# een telefoon vragen om een tab die halverwege je speech wordt weggegooid.
+# Korte geluiden blijven wel vooraf gedecodeerd: daar telt elke milliseconde.
+STREAM_BOVEN_SECONDEN = 60.0
+
 # Neonkleuren waar nieuwe knoppen doorheen roteren.
 PALETTE = ["#ff2d95", "#00e5ff", "#b14aff", "#ffd400",
            "#39ff88", "#ff6a00", "#2f6bff", "#ff3355"]
@@ -109,6 +116,10 @@ def main():
         pad = os.path.join(AUDIO_DIR, entry["file"])
         if os.path.exists(pad):
             entry["hash"] = file_hash(pad)
+        if entry.get("duration", 0) > STREAM_BOVEN_SECONDEN:
+            entry["stream"] = True
+        else:
+            entry.pop("stream", None)
 
     manifest["sounds"] = out
     with open(MANIFEST, "w") as f:

@@ -168,7 +168,8 @@
       "color": "#ff3355",
       "gainDb": -2.1,
       "duration": 159.613,
-      "hash": "c71df6cba6"
+      "hash": "c71df6cba6",
+      "stream": true
     },
     {
       "id": "diamonds-on-the-soles",
@@ -178,7 +179,30 @@
       "color": "#ff2d95",
       "gainDb": -2.41,
       "duration": 208.76,
-      "hash": "d1bf33b251"
+      "hash": "d1bf33b251",
+      "stream": true
+    },
+    {
+      "id": "fortuna-con-sprezzatura",
+      "file": "fortuna-con-sprezzatura.mp3",
+      "label": "FORTUNA",
+      "icon": "notes",
+      "color": "#b14aff",
+      "gainDb": -1.63,
+      "duration": 188.24,
+      "hash": "2ee623833f",
+      "stream": true
+    },
+    {
+      "id": "fortuna-con-sprezzatura-2",
+      "file": "fortuna-con-sprezzatura-2.mp3",
+      "label": "FORTUNA 2",
+      "icon": "vinyl",
+      "color": "#ffd400",
+      "gainDb": -2.87,
+      "duration": 181.24,
+      "hash": "88a364b833",
+      "stream": true
     }
   ]
 }

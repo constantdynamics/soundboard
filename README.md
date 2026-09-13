@@ -9,9 +9,10 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
 
 ## Wat het doet
 
-- **Geen vertraging.** Alle geluiden worden bij het opstarten opgehaald en
+- **Geen vertraging.** Korte geluiden worden bij het opstarten opgehaald en
   gedecodeerd naar geheugen (Web Audio). Een knop indrukken start het geluid
-  direct, zonder netwerk- of decodeerwachttijd.
+  direct, zonder netwerk- of decodeerwachttijd. Volledige nummers worden
+  gestreamd; zie *Korte geluiden en lange nummers*.
 - **Alles tegelijk.** Meerdere knoppen tegelijk is geen probleem, en dezelfde
   knop nog eens indrukken start een nieuwe laag terwijl de vorige doorspeelt.
 - **Gelijk volume.** Elk geluid is gemeten volgens EBU R128 en wordt op
@@ -125,6 +126,31 @@ icoon van een nieuwe knop pas je daarna gewoon in de app zelf aan.
 Een palet zet de kleur van alle knoppen opnieuw. Wil je één knop een eigen
 kleur geven, zet dan het slotje open en tik die knop aan.
 
+## Korte geluiden en lange nummers
+
+Een minuut gedecodeerde stereo kost ongeveer 22 MB werkgeheugen. Met vier
+volledige nummers erbij zou de soundboard richting 300 MB gaan, en dat is op
+een telefoon vragen om een tab die halverwege je speech wordt weggegooid.
+
+Daarom twee routes, op duur gescheiden:
+
+| | korter dan 60s | langer dan 60s |
+|---|---|---|
+| hoe | vooraf gedecodeerd naar geheugen | gestreamd uit een audio-element |
+| geheugen | ~26 MB voor alle korte geluiden samen | vrijwel niets |
+| vertraging bij indrukken | nul | ongeveer 80 ms |
+| nog eens indrukken | stapelt over het lopende geluid heen | begint opnieuw vanaf 0 |
+
+De grens staat in `tools/sync_manifest.py` (`STREAM_BOVEN_SECONDEN`) en komt als
+`"stream": true` in `data/sounds.json` terecht. Waar het ertoe doet — de korte
+klappers die je op een clou indrukt — is er dus nul vertraging en kun je
+stapelen. Bij een nummer van drie minuten merk je die 80 ms niet, en stapelen
+wil je daar toch niet.
+
+De service worker snijdt voor gestreamde bestanden zelf het gevraagde stuk uit
+de opgeslagen kopie en antwoordt met een 206, zodat doorspoelen werkt en alles
+ook zonder internet blijft spelen.
+
 ## Over de normalisatie
 
 De mp3's worden **niet** gehercodeerd — er gaat dus geen kwaliteit verloren.
@@ -158,7 +184,7 @@ Gemeten waarden:
 | BA DUM TSS | 1.9s | -19.85 | +3.85 dB |
 | BA DUM TSS 2 | 2.9s | -21.68 | +5.68 dB |
 | AFKEURING | 16.7s | -8.21 | -7.79 dB |
-| TOPPUNT | 6.7s | -1.56 | -14.44 dB |
+| TOPPUNT | 0.8s | -2.32 | -13.68 dB |
 | CODETAAL QUIZ | 5.6s | -13.59 | -2.41 dB |
 | CODETAAL QUIZ 2 | 6.8s | -13.57 | -2.43 dB |
 | WHATSAPP 15:14 | 3.1s | -38.22 | +22.22 dB |
@@ -169,8 +195,11 @@ Gemeten waarden:
 | IT WAS A GOOD DAY | 2.9s | -14.7 | -1.30 dB |
 | 1000 GOOD INTENTIONS | 5.1s | -14.82 | -1.18 dB |
 | RODRIGUEZ | 29.9s | -16.46 | +0.46 dB |
+| ALS GE DIT ZIET | 6.0s | -16.77 | +0.77 dB |
 | LOYAL FRIENDS | 159.6s | -13.9 | -2.10 dB |
 | DIAMONDS | 208.8s | -13.59 | -2.41 dB |
+| FORTUNA | 188.2s | -14.37 | -1.63 dB |
+| FORTUNA 2 | 181.2s | -13.13 | -2.87 dB |
 
 ## Opbouw
 

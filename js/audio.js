@@ -19,7 +19,8 @@
   var Engine = {
     ctx: null,
     ready: false,
-    buffers: {},        // id -> AudioBuffer
+    buffers: {},        // id -> AudioBuffer (korte geluiden)
+    streams: {},        // id -> { el, source, gain } (lange nummers)
     raw: {},            // id -> ArrayBuffer (voor het ontgrendelen)
     defs: {},           // id -> manifest-entry
     gains: {},          // id -> GainNode
@@ -35,8 +36,10 @@
       this.defs = {};
       defs.forEach(function (d) { self.defs[d.id] = d; });
 
-      var total = defs.length, done = 0;
-      return Promise.all(defs.map(function (d) {
+      this.base = base;
+      var haal = defs.filter(function (d) { return !d.stream; });
+      var total = haal.length || 1, done = 0;
+      return Promise.all(haal.map(function (d) {
         var url = base + d.file + (d.hash ? '?v=' + d.hash : '');
         return fetch(url, { cache: 'force-cache' })
           .then(function (r) {
@@ -104,8 +107,49 @@
         }));
       }).then(function () {
         self.raw = {};              // ruwe bytes mogen weg na het decoderen
+        Object.keys(self.defs).forEach(function (id) {
+          if (self.defs[id].stream) self.openStream(id);
+        });
         self.ready = true;
       });
+    },
+
+    /* Lange nummers worden niet vooraf gedecodeerd maar afgespeeld vanuit een
+       audio-element. Een gedecodeerde minuut stereo kost zo'n 22 MB; met vier
+       volledige nummers erbij loopt dat op tot honderden megabytes en dat is
+       op een telefoon vragen om problemen. Het element buffert vooruit, dus de
+       vertraging bij indrukken blijft een paar milliseconden.               */
+    openStream: function (id) {
+      if (this.streams[id]) return;
+      var def = this.defs[id];
+      var el = new Audio();
+      el.src = this.base + def.file + (def.hash ? '?v=' + def.hash : '');
+      el.preload = 'auto';
+      el.crossOrigin = 'anonymous';
+      el.load();
+
+      var source = this.ctx.createMediaElementSource(el);
+      var vg = this.ctx.createGain();
+      vg.gain.value = 1;
+      source.connect(vg);
+
+      var g = this.ctx.createGain();
+      g.gain.value = this.gainFor(id);
+      g.connect(this.masterGain);
+      vg.connect(g);
+      this.gains[id] = g;
+      this.voices[id] = [];
+
+      // iOS wil dat elk element minstens één keer binnen een gebaar heeft
+      // gespeeld; dit ontgrendelt het zonder dat je iets hoort.
+      var p = el.play();
+      if (p && p.then) p.then(function () { el.pause(); el.currentTime = 0; })
+                        .catch(function () {});
+      else { try { el.pause(); el.currentTime = 0; } catch (e) {} }
+
+      var self = this;
+      el.addEventListener('ended', function () { self.voices[id] = []; });
+      this.streams[id] = { el: el, source: source, gain: vg };
     },
 
     decode: function (arrayBuffer) {
@@ -137,7 +181,21 @@
 
     /* ---- afspelen ---------------------------------------------- */
     play: function (id) {
-      if (!this.ready || !this.buffers[id]) return null;
+      if (!this.ready) return null;
+
+      var st = this.streams[id];
+      if (st) {                       // gestreamd: opnieuw vanaf het begin
+        var t = this.ctx.currentTime;
+        st.gain.gain.cancelScheduledValues(t);
+        st.gain.gain.setValueAtTime(1, t);
+        try { st.el.currentTime = 0; } catch (e) {}
+        st.el.play().catch(function () {});
+        var v = { stream: true, startedAt: t, fading: false };
+        this.voices[id] = [v];
+        return v;
+      }
+
+      if (!this.buffers[id]) return null;
       var ctx = this.ctx;
       var src = ctx.createBufferSource();
       src.buffer = this.buffers[id];
@@ -169,15 +227,33 @@
     fade: function (id, seconds) {
       var list = this.voices[id] || [];
       var self = this;
-      list.slice().forEach(function (v) { self.fadeVoice(v, seconds); });
+      list.slice().forEach(function (v) { self.fadeVoice(v, seconds, id); });
       return list.length > 0;
     },
 
-    fadeVoice: function (voice, seconds) {
+    fadeVoice: function (voice, seconds, id) {
       if (voice.fading) return;
       voice.fading = true;
       var t = this.ctx.currentTime;
       var s = Math.max(0.05, seconds || 1);
+
+      if (voice.stream) {
+        var st = this.streams[id];
+        if (!st) return;
+        var self = this;
+        try {
+          st.gain.gain.cancelScheduledValues(t);
+          st.gain.gain.setValueAtTime(Math.max(st.gain.gain.value, 0.0001), t);
+          st.gain.gain.exponentialRampToValueAtTime(0.0001, t + s);
+        } catch (e) {}
+        setTimeout(function () {
+          try { st.el.pause(); st.el.currentTime = 0; } catch (e) {}
+          st.gain.gain.setValueAtTime(1, self.ctx.currentTime);
+          self.voices[id] = [];
+        }, s * 1000 + 40);
+        return;
+      }
+
       try {
         voice.gain.gain.cancelScheduledValues(t);
         voice.gain.gain.setValueAtTime(Math.max(voice.gain.gain.value, 0.0001), t);
@@ -193,26 +269,27 @@
       var self = this, any = false;
       Object.keys(this.voices).forEach(function (id) {
         if (self.voices[id].length) any = true;
-        self.voices[id].slice().forEach(function (v) { self.fadeVoice(v, seconds); });
+        self.voices[id].slice().forEach(function (v) { self.fadeVoice(v, seconds, id); });
       });
       return any;
     },
 
     /* ---- status voor de interface ------------------------------ */
-    isPlaying: function (id) {
-      var list = this.voices[id] || [];
-      for (var i = 0; i < list.length; i++) if (!list[i].fading) return true;
-      return list.length > 0;
-    },
+    isPlaying: function (id) { return this.voiceCount(id) > 0; },
 
     anyPlaying: function () {
-      var ids = Object.keys(this.voices);
-      for (var i = 0; i < ids.length; i++) if (this.voices[ids[i]].length) return true;
+      var ids = Object.keys(this.defs);
+      for (var i = 0; i < ids.length; i++) if (this.voiceCount(ids[i])) return true;
       return false;
     },
 
     /** 0..1 voortgang van de langst lopende stem van dit geluid. */
     progress: function (id) {
+      var st = this.streams[id];
+      if (st) {
+        if (!st.el.duration) return 0;
+        return Math.max(0, Math.min(1, st.el.currentTime / st.el.duration));
+      }
       var list = this.voices[id] || [];
       if (!list.length) return 0;
       var oldest = list[0], t = this.ctx.currentTime;
@@ -223,7 +300,11 @@
       return Math.max(0, Math.min(1, (t - oldest.startedAt) / oldest.duration));
     },
 
-    voiceCount: function (id) { return (this.voices[id] || []).length; }
+    voiceCount: function (id) {
+      var st = this.streams[id];
+      if (st) return (st.el && !st.el.paused && !st.el.ended) ? 1 : 0;
+      return (this.voices[id] || []).length;
+    }
   };
 
   global.AudioEngine = Engine;

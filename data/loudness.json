@@ -101,6 +101,28 @@
       "sampleRate": 48000,
       "channels": 2
     },
+    "fortuna-con-sprezzatura-2.mp3": {
+      "lufs": -13.13,
+      "momentaryMax": -9.61,
+      "peakDb": -1.55,
+      "workPeakDb": -4.17,
+      "gainDb": -2.87,
+      "peakAfterDb": -4.42,
+      "duration": 181.24,
+      "sampleRate": 48000,
+      "channels": 2
+    },
+    "fortuna-con-sprezzatura.mp3": {
+      "lufs": -14.37,
+      "momentaryMax": -10.15,
+      "peakDb": -1.39,
+      "workPeakDb": -4.41,
+      "gainDb": -1.63,
+      "peakAfterDb": -3.02,
+      "duration": 188.24,
+      "sampleRate": 48000,
+      "channels": 2
+    },
     "it-was-a-good-day.mp3": {
       "lufs": -14.7,
       "momentaryMax": -13.32,
