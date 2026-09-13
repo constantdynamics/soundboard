@@ -85,6 +85,15 @@
     { id: '4', name: '4' }, { id: '5', name: '5' }, { id: '6', name: '6' }
   ];
 
+  /* Hoeveel een ouder geluid wegzakt zodra er iets nieuws overheen komt. */
+  var DUCKS = [
+    { id: 0,  name: 'UIT' },
+    { id: 6,  name: 'LICHT' },
+    { id: 12, name: 'NORMAAL' },
+    { id: 18, name: 'STERK' },
+    { id: 30, name: 'BIJNA WEG' }
+  ];
+
   var FADES = [
     { id: 0.4, name: 'SNEL' },
     { id: 1.2, name: 'NORMAAL' },
@@ -112,6 +121,7 @@
       columns: 'auto',
       masterVolume: 85,
       fade: 1.2,
+      duck: 12,
       timerTarget: 420,
       showLabels: true,
       order: [],
@@ -122,7 +132,7 @@
 
   var Settings = {
     FONTS: FONTS, PALETTES: PALETTES, SIZES: SIZES, FILLS: FILLS,
-    BORDERS: BORDERS, GAPS: GAPS, RADII: RADII,
+    BORDERS: BORDERS, GAPS: GAPS, RADII: RADII, DUCKS: DUCKS,
     COLUMNS: COLUMNS, FADES: FADES, TIMER_TARGETS: TIMER_TARGETS,
     data: defaults(),
     onchange: null,

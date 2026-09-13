@@ -17,6 +17,10 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
   knop nog eens indrukken start een nieuwe laag terwijl de vorige doorspeelt.
 - **Gelijk volume.** Elk geluid is gemeten volgens EBU R128 en wordt op
   −16 LUFS afgespeeld. Per geluid kun je daar met een schuif van afwijken.
+- **Wegdrukken.** Speel je iets terwijl er al geluid loopt, dan zakt het oudere
+  zachtjes weg en komt het terug zodra het nieuwe klaar is — zoals een
+  radiomaker een muziekbed onder een stem duwt. Instelbaar van licht tot bijna
+  weg, of helemaal uit.
 - **Uitfaden.** De grote STOP-knop faadt alles uit. Zodra een geluid speelt
   verschijnt er rechtsboven op die knop een klein fade-knopje voor alleen dat
   geluid.
@@ -49,6 +53,7 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
 | Fade-knopje op een spelende knop | alleen dat geluid uitfaden |
 | **STOP** | alles uitfaden |
 | **Slotje** | bewerkmodus aan/uit |
+| Knop die wordt weggedrukt | dooft op het bord zolang er iets nieuwers speelt |
 | Knop ingedrukt houden | naam, icoon, kleur, volume en plek aanpassen — ook met het slotje dicht |
 | Knop aantikken in bewerkmodus | hetzelfde bewerkscherm |
 | Knop naar een lege plek slepen | verhuist daarheen, oude plek blijft open |
@@ -158,6 +163,19 @@ Hoeveel een browser van een gestreamd bestand vooruit laadt bepaalt hij zelf,
 en op mobiel is dat zuinig. **Instellingen &rarr; Offline klaarzetten** haalt
 daarom elk bestand in zijn geheel op en zet het in de cache. Daarna staat alles
 gegarandeerd lokaal, ook het einde van een nummer van drie minuten.
+
+## Wegdrukken
+
+Het nieuwste geluid houdt zijn volle volume; alles wat al liep zakt weg met
+de ingestelde hoeveelheid (standaard 12 dB) en komt terug zodra het nieuwe
+klaar is. Wegzakken duurt 180 ms, terugkomen 450 ms.
+
+Knoppen die je binnen 300 ms van elkaar indrukt tellen als één moment, zodat
+een bewuste dubbele aanslag zichzelf niet wegdrukt.
+
+Elke stem heeft hiervoor een eigen gain-trap, los van die voor het uitfaden.
+Anders zouden een lopende fade en een wegdrukking dezelfde waarde zitten
+verzetten, en dan wint de laatste die begon.
 
 ## Over de normalisatie
 

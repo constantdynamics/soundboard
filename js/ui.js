@@ -181,6 +181,7 @@
       var mv = $('master-vol');
       if (mv && String(mv.value) !== String(d.masterVolume)) mv.value = d.masterVolume;
       E.setMaster(d.masterVolume);
+      E.setDuck(d.duck);
     },
 
     /* ---- knoppenraster -------------------------------------------- */
@@ -448,6 +449,7 @@
         var n = E.voiceCount(id), playing = n > 0;
         w.classList.toggle('is-playing', playing);
         w.classList.toggle('is-stacked', n > 1);
+        w.classList.toggle('is-ducked', playing && E.isDucked(id));
         if (n > 1) w.querySelector('.pad-voices').textContent = n;
         var prog = w.querySelector('.pad-prog');
         prog.style.width = playing ? (E.progress(id) * 100).toFixed(1) + '%' : '0';
@@ -663,6 +665,19 @@
         [{ id: 'ja', name: 'TONEN' }, { id: 'nee', name: 'VERBERGEN' }],
         d.showLabels ? 'ja' : 'nee',
         function (it) { S.set('showLabels', it.id === 'ja'); self.applyTheme(); self.renderSettings(); })));
+
+      /* ducken */
+      body.appendChild(this.field('WEGDRUKKEN', S.find(S.DUCKS, d.duck).name,
+        this.chipRow(S.DUCKS, d.duck, function (it) {
+          S.set('duck', it.id); E.setDuck(it.id); self.renderSettings();
+        }, function (it) {
+          return esc(it.name) + (it.id ? ' &middot; &minus;' + it.id + ' dB' : '');
+        })));
+      body.lastChild.appendChild(el('p', 'hint',
+        'Speel je iets terwijl er al geluid loopt, dan zakt het oudere zachtjes ' +
+        'weg en komt het terug zodra het nieuwe klaar is. Knoppen die je vlak na ' +
+        'elkaar indrukt tellen als één moment, dus een bewuste dubbele aanslag ' +
+        'drukt zichzelf niet weg. Een weggedrukte knop dooft op het bord.'));
 
       /* fade */
       body.appendChild(this.field('UITFADEN', S.find(S.FADES, d.fade).name,

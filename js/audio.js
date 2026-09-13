@@ -16,6 +16,28 @@
 
   function dbToLin(db) { return Math.pow(10, db / 20); }
 
+  /* Ducken: het nieuwste geluid houdt zijn volle volume, wat er al speelde
+     zakt weg en komt terug zodra het nieuwe klaar is. Twee knoppen die je
+     vlak na elkaar indrukt tellen als één moment, zodat een bewuste dubbele
+     aanslag niet zichzelf wegdrukt. */
+  var DUCK_ATTACK = 0.18;     // hoe snel het wegzakt
+  var DUCK_RELEASE = 0.45;    // hoe snel het terugkomt
+  var DUCK_SAMEN = 0.3;       // binnen deze tijd hoort het bij elkaar
+
+  function rampDuck(ctx, voice, value) {
+    if (!voice.duck || voice.duckTarget === value) return;
+    voice.duckTarget = value;
+    var g = voice.duck.gain, t = ctx.currentTime;
+    var doel = Math.max(value, 0.0001);
+    try {
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(g.value, 0.0001), t);
+      g.exponentialRampToValueAtTime(doel, t + (value < 1 ? DUCK_ATTACK : DUCK_RELEASE));
+    } catch (e) {
+      try { g.value = doel; } catch (e2) {}
+    }
+  }
+
   var Engine = {
     ctx: null,
     ready: false,
@@ -28,6 +50,7 @@
     voices: {},         // id -> [ {src, gain, startedAt, duration} ]
     masterGain: null,
     limiter: null,
+    duckDb: 12,         // hoeveel het oudere geluid zakt; 0 zet ducken uit
     onprogress: null,
 
     /* ---- stap 1: bytes binnenhalen (mag vóór de eerste tik) ---- */
@@ -129,9 +152,12 @@
       el.load();
 
       var source = this.ctx.createMediaElementSource(el);
+      var duck = this.ctx.createGain();
+      duck.gain.value = 1;
       var vg = this.ctx.createGain();
       vg.gain.value = 1;
-      source.connect(vg);
+      source.connect(duck);
+      duck.connect(vg);
 
       var g = this.ctx.createGain();
       g.gain.value = this.gainFor(id);
@@ -148,8 +174,11 @@
       else { try { el.pause(); el.currentTime = 0; } catch (e) {} }
 
       var self = this;
-      el.addEventListener('ended', function () { self.voices[id] = []; });
-      this.streams[id] = { el: el, source: source, gain: vg };
+      el.addEventListener('ended', function () {
+        self.voices[id] = [];
+        self.applyDucking();
+      });
+      this.streams[id] = { el: el, source: source, gain: vg, duck: duck };
     },
 
     decode: function (arrayBuffer) {
@@ -190,8 +219,11 @@
         st.gain.gain.setValueAtTime(1, t);
         try { st.el.currentTime = 0; } catch (e) {}
         st.el.play().catch(function () {});
-        var v = { stream: true, startedAt: t, fading: false };
+        st.duck.gain.cancelScheduledValues(t);   // begint altijd op vol volume
+        st.duck.gain.setValueAtTime(1, t);
+        var v = { stream: true, startedAt: t, fading: false, duck: st.duck, duckTarget: 1 };
         this.voices[id] = [v];
+        this.applyDucking();
         return v;
       }
 
@@ -200,13 +232,16 @@
       var src = ctx.createBufferSource();
       src.buffer = this.buffers[id];
 
+      var duck = ctx.createGain();        // aparte trap voor het ducken
+      duck.gain.value = 1;
       var vg = ctx.createGain();          // eigen stem-gain, voor uitfaden
       vg.gain.value = 1;
-      src.connect(vg);
+      src.connect(duck);
+      duck.connect(vg);
       vg.connect(this.gains[id]);
 
       var voice = {
-        src: src, gain: vg,
+        src: src, gain: vg, duck: duck, duckTarget: 1,
         startedAt: ctx.currentTime,
         duration: src.buffer.duration,
         fading: false
@@ -216,10 +251,12 @@
         var list = self.voices[id] || [];
         var i = list.indexOf(voice);
         if (i >= 0) list.splice(i, 1);
-        try { vg.disconnect(); } catch (e) {}
+        try { vg.disconnect(); duck.disconnect(); } catch (e) {}
+        self.applyDucking();
       };
       src.start(0);
       this.voices[id].push(voice);
+      this.applyDucking();
       return voice;
     },
 
@@ -234,6 +271,7 @@
     fadeVoice: function (voice, seconds, id) {
       if (voice.fading) return;
       voice.fading = true;
+      this.applyDucking();
       var t = this.ctx.currentTime;
       var s = Math.max(0.05, seconds || 1);
 
@@ -250,6 +288,7 @@
           try { st.el.pause(); st.el.currentTime = 0; } catch (e) {}
           st.gain.gain.setValueAtTime(1, self.ctx.currentTime);
           self.voices[id] = [];
+          self.applyDucking();
         }, s * 1000 + 40);
         return;
       }
@@ -272,6 +311,49 @@
         self.voices[id].slice().forEach(function (v) { self.fadeVoice(v, seconds, id); });
       });
       return any;
+    },
+
+    /* ---- ducken -------------------------------------------------- */
+
+    /** Alle stemmen die nu echt klinken, dus zonder de uitfadende. */
+    activeVoices: function () {
+      var self = this, out = [];
+      Object.keys(this.voices).forEach(function (id) {
+        (self.voices[id] || []).forEach(function (v) { if (!v.fading) out.push(v); });
+      });
+      return out;
+    },
+
+    /** Het nieuwste geluid blijft vol, oudere zakken weg. Wordt opnieuw
+        gedraaid zodra er iets begint of eindigt. */
+    applyDucking: function () {
+      var ctx = this.ctx;
+      if (!ctx) return;
+      var list = this.activeVoices();
+      if (!this.duckDb || list.length < 2) {
+        list.forEach(function (v) { rampDuck(ctx, v, 1); });
+        return;
+      }
+      var nieuwste = 0;
+      list.forEach(function (v) { if (v.startedAt > nieuwste) nieuwste = v.startedAt; });
+      var zacht = dbToLin(-Math.abs(this.duckDb));
+      list.forEach(function (v) {
+        rampDuck(ctx, v, (nieuwste - v.startedAt) <= DUCK_SAMEN ? 1 : zacht);
+      });
+    },
+
+    setDuck: function (db) {
+      this.duckDb = Math.abs(db || 0);
+      this.applyDucking();
+    },
+
+    /** Voor de interface: staat dit geluid nu weggedrukt? */
+    isDucked: function (id) {
+      var list = this.voices[id] || [];
+      for (var i = 0; i < list.length; i++) {
+        if (!list[i].fading && list[i].duckTarget !== undefined && list[i].duckTarget < 1) return true;
+      }
+      return false;
     },
 
     /* ---- alles offline klaarzetten ------------------------------ */

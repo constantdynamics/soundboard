@@ -248,6 +248,11 @@ h1, h2, h3, p { margin: 0; }
 }
 .board .pad-wrap.is-playing .pad .ico { filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 22px var(--c)); }
 
+/* weggedrukt door een nieuwer geluid */
+.board .pad-wrap.is-ducked .pad { opacity: .5; }
+.board .pad-wrap.is-ducked .pad-label { opacity: .45; }
+.pad-wrap .pad, .pad-wrap .pad-label { transition: opacity .3s ease; }
+
 /* korte flits bij elke aanslag */
 .pad.hit::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit;
