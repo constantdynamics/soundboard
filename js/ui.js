@@ -114,6 +114,10 @@
       defs.forEach(function (d) { if (!seen[d.id]) { order.push(d.id); seen[d.id] = 1; } });
       S.data.order = trimTail(order);
 
+      Object.keys(S.data.sounds).forEach(function (sid) {
+        if (self.byId[sid]) self.pushEdit(sid);
+      });
+
       this.bindChrome();
       this.applyTheme();
       this.renderBoard();
@@ -977,6 +981,9 @@
         (d.trimDb > 0 ? '+' : '') + d.trimDb.toFixed(1) + ' dB', trim);
       trimField.querySelector('.field-value').dataset.v = 'trim';
 
+      this.renderWave(body, id);
+      this.renderPolish(body, id);
+
       var trimRow = el('div', 'row');
       trimRow.style.marginTop = '8px';
       var testBtn = el('button', 'btn btn--accent', 'BELUISTEREN');
@@ -1040,6 +1047,209 @@
         'staat verhuist een knop naar het streepjesvak waar je hem loslaat, en blijft ' +
         'zijn oude plek open. Laat je hem op een andere knop los, dan wisselen die twee om.'));
       body.appendChild(plekField);
+    },
+
+    /* ---- golfvorm en bijsnijden ---------------------------------- */
+    renderWave: function (body, id) {
+      var self = this;
+      var base = this.byId[id] || {};
+      var peaks = base.peaks;
+      var d = this.get(id);
+
+      if (!peaks || !peaks.length) {
+        body.appendChild(this.field('BIJSNIJDEN', '',
+          el('p', 'hint', 'Voor dit geluid is geen golfvorm beschikbaar.')));
+        return;
+      }
+
+      var over = S.sound(id);
+      var totaal = base.duration || 0;
+      var start = Math.max(0, Math.min(over.trimStart || 0, totaal));
+      var eind = (over.trimEnd && over.trimEnd > start) ? Math.min(over.trimEnd, totaal) : totaal;
+
+      var wrap = el('div', 'wave');
+      wrap.style.setProperty('--c', d.color);
+      wrap.style.setProperty('--c-rgb', hexToRgb(d.color));
+      var canvas = el('canvas', 'wave-canvas');
+      var vlakVoor = el('div', 'wave-dim wave-dim--voor');
+      var vlakNa = el('div', 'wave-dim wave-dim--na');
+      var kop = el('div', 'wave-head');
+      var grA = el('div', 'wave-grip wave-grip--a', '<i></i>');
+      var grB = el('div', 'wave-grip wave-grip--b', '<i></i>');
+      wrap.appendChild(canvas); wrap.appendChild(vlakVoor); wrap.appendChild(vlakNa);
+      wrap.appendChild(kop); wrap.appendChild(grA); wrap.appendChild(grB);
+
+      var veld = this.field('BIJSNIJDEN', '', wrap);
+      var uitlezing = veld.querySelector('.field-label');
+      uitlezing.insertAdjacentHTML('beforeend', '<span class="field-value" data-v="span"></span>');
+      var lees = uitlezing.querySelector('[data-v="span"]');
+
+      function pct(t) { return totaal ? (t / totaal * 100) : 0; }
+      function toon() {
+        vlakVoor.style.width = pct(start) + '%';
+        vlakNa.style.left = pct(eind) + '%';
+        vlakNa.style.width = (100 - pct(eind)) + '%';
+        grA.style.left = pct(start) + '%';
+        grB.style.left = pct(eind) + '%';
+        lees.textContent = (eind - start).toFixed(2) + ' s  ·  ' +
+          start.toFixed(2) + '–' + eind.toFixed(2);
+        teken();
+      }
+      function teken() {
+        var c = canvas.getContext('2d');
+        var dpr = global.devicePixelRatio || 1;
+        var w = canvas.clientWidth || 300, h = canvas.clientHeight || 70;
+        canvas.width = w * dpr; canvas.height = h * dpr;
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        c.clearRect(0, 0, w, h);
+        var n = peaks.length, bw = w / n;
+        for (var i = 0; i < n; i++) {
+          var t = (i + 0.5) / n * totaal;
+          var erin = t >= start && t <= eind;
+          c.fillStyle = erin ? d.color : 'rgba(255,255,255,.16)';
+          var bh = Math.max(2, peaks[i] / 100 * (h * 0.92));
+          c.fillRect(i * bw, (h - bh) / 2, Math.max(1, bw - 0.7), bh);
+        }
+      }
+
+      function sleep(grip, isStart) {
+        grip.addEventListener('pointerdown', function (ev) {
+          ev.preventDefault(); ev.stopPropagation();
+          var r = wrap.getBoundingClientRect();
+          function beweeg(e) {
+            var t = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * totaal;
+            if (isStart) start = Math.min(t, eind - 0.05);
+            else eind = Math.max(t, start + 0.05);
+            toon();
+          }
+          function los() {
+            grip.removeEventListener('pointermove', beweeg);
+            grip.removeEventListener('pointerup', los);
+            grip.removeEventListener('pointercancel', los);
+            S.setSound(id, 'trimStart', +start.toFixed(3));
+            S.setSound(id, 'trimEnd', +eind.toFixed(3));
+            self.pushEdit(id);
+          }
+          try { grip.setPointerCapture(ev.pointerId); } catch (e) {}
+          grip.addEventListener('pointermove', beweeg);
+          grip.addEventListener('pointerup', los);
+          grip.addEventListener('pointercancel', los);
+        });
+      }
+      sleep(grA, true); sleep(grB, false);
+
+      var rij = el('div', 'row');
+      rij.style.marginTop = '10px';
+      var hoor = el('button', 'btn btn--accent', 'BELUISTEREN');
+      hoor.type = 'button';
+      hoor.addEventListener('click', function () {
+        self.pushEdit(id);
+        E.play(id);
+        self.wake();
+        (function loop() {
+          var p = E.progress(id);
+          if (E.voiceCount(id)) {
+            kop.style.opacity = 1;
+            kop.style.left = (pct(start) + p * (pct(eind) - pct(start))) + '%';
+            requestAnimationFrame(loop);
+          } else { kop.style.opacity = 0; }
+        })();
+      });
+      var stil = el('button', 'btn', 'STILTE ERAF');
+      stil.type = 'button';
+      stil.addEventListener('click', function () {
+        var top = 0;
+        peaks.forEach(function (v) { if (v > top) top = v; });
+        var drempel = Math.max(4, top * 0.08);
+        var a = 0, b = peaks.length - 1;
+        while (a < peaks.length && peaks[a] < drempel) a++;
+        while (b > a && peaks[b] < drempel) b--;
+        var vak = totaal / peaks.length;
+        start = Math.max(0, a * vak - 0.04);
+        eind = Math.min(totaal, (b + 1) * vak + 0.06);
+        S.setSound(id, 'trimStart', +start.toFixed(3));
+        S.setSound(id, 'trimEnd', +eind.toFixed(3));
+        self.pushEdit(id);
+        toon();
+      });
+      var alles = el('button', 'btn', 'ALLES');
+      alles.type = 'button';
+      alles.addEventListener('click', function () {
+        start = 0; eind = totaal;
+        S.setSound(id, 'trimStart', 0);
+        S.setSound(id, 'trimEnd', 0);
+        self.pushEdit(id);
+        toon();
+      });
+      rij.appendChild(hoor); rij.appendChild(stil); rij.appendChild(alles);
+      veld.appendChild(rij);
+      veld.appendChild(el('p', 'hint',
+        'Sleep de grepen om het begin en eind te verleggen. Er wordt niets uit ' +
+        'het bestand geknipt: de knop speelt gewoon alleen het stuk tussen de ' +
+        'grepen, en met ALLES staat alles weer open.'));
+      body.appendChild(veld);
+      setTimeout(toon, 0);
+    },
+
+    /* ---- oppoetsen ----------------------------------------------- */
+    renderPolish: function (body, id) {
+      var self = this, over = S.sound(id);
+      var box = el('div');
+
+      var presets = [
+        { id: 'uit',    name: 'UIT',        hp: 0,   presence: 0 },
+        { id: 'stem',   name: 'STEM',       hp: 110, presence: 4 },
+        { id: 'scherp', name: 'STEM SCHERP', hp: 150, presence: 7 },
+        { id: 'rommel', name: 'MINDER ROMMEL', hp: 220, presence: 3 },
+        { id: 'warm',   name: 'WARM',       hp: 60,  presence: -3 }
+      ];
+      var huidig = 'eigen';
+      presets.forEach(function (p) {
+        if ((over.hp || 0) === p.hp && (over.presence || 0) === p.presence) huidig = p.id;
+      });
+
+      box.appendChild(this.chipRow(presets, huidig, function (p) {
+        S.setSound(id, 'hp', p.hp);
+        S.setSound(id, 'presence', p.presence);
+        self.pushEdit(id);
+        self.renderPadSheet();
+      }));
+
+      function schuif(label, sleutel, min, max, stap, eenheid) {
+        var r = el('input');
+        r.type = 'range'; r.min = min; r.max = max; r.step = stap;
+        r.value = over[sleutel] || 0;
+        r.style.marginTop = '10px';
+        var f = self.field(label, (over[sleutel] || 0) + ' ' + eenheid, r);
+        f.style.marginBottom = '10px';
+        r.addEventListener('input', function () {
+          S.setSound(id, sleutel, parseFloat(this.value));
+          self.pushEdit(id);
+          f.querySelector('.field-value').textContent = this.value + ' ' + eenheid;
+        });
+        return f;
+      }
+      box.appendChild(schuif('LAAG WEGHALEN', 'hp', 0, 400, 10, 'Hz'));
+      box.appendChild(schuif('HELDERHEID', 'presence', -8, 10, 1, 'dB'));
+
+      var veld = this.field('OPPOETSEN', '', box);
+      veld.appendChild(el('p', 'hint',
+        'Laag weghalen ruimt gerommel en gebrom op, helderheid tilt het ' +
+        'stembereik iets op. Dit maakt een opname helderder, maar het kan ' +
+        'geen muziek of een tweede stem uit een fragment halen — daar is ' +
+        'een heel ander soort gereedschap voor nodig.'));
+      body.appendChild(veld);
+    },
+
+    /** Geeft de bewerking van dit geluid door aan de engine. */
+    pushEdit: function (id) {
+      var o = S.sound(id);
+      E.setEdit(id, {
+        start: o.trimStart || 0,
+        end: o.trimEnd || 0,
+        hp: o.hp || 0,
+        presence: o.presence || 0
+      });
     },
 
     refreshPad: function (id) {

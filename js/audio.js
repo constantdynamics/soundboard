@@ -47,6 +47,8 @@
     defs: {},           // id -> manifest-entry
     gains: {},          // id -> GainNode
     trim: {},           // id -> gebruikersafwijking in dB
+    edit: {},           // id -> { start, end, hp, presence }
+    fx: {},             // id -> { hp, pres } filters per geluid
     voices: {},         // id -> [ {src, gain, startedAt, duration} ]
     masterGain: null,
     limiter: null,
@@ -117,8 +119,8 @@
             self.buffers[id] = buf;
             var g = self.ctx.createGain();
             g.gain.value = self.gainFor(id);
-            g.connect(self.masterGain);
             self.gains[id] = g;
+            g.connect(self.fxFor(id).hp);
             self.voices[id] = [];
             done++;
             if (self.onprogress) self.onprogress(0.65 + done / total * 0.35, self.defs[id].label);
@@ -178,6 +180,16 @@
         self.voices[id] = [];
         self.applyDucking();
       });
+      // stopt op het ingestelde eindpunt in plaats van aan het bestandseinde
+      el.addEventListener('timeupdate', function () {
+        var st = self.streams[id];
+        if (!st || !st.stopAt) return;
+        if (el.currentTime >= st.stopAt - 0.02) {
+          el.pause();
+          self.voices[id] = [];
+          self.applyDucking();
+        }
+      });
       this.streams[id] = { el: el, source: source, gain: vg, duck: duck };
     },
 
@@ -188,6 +200,53 @@
         var p = ctx.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
         if (p && typeof p.then === 'function') p.then(resolve, reject);
       });
+    },
+
+    /* ---- bijsnijden en oppoetsen -------------------------------- */
+
+    /** Bouwt (eenmalig) de filters voor dit geluid en geeft het ingangspunt
+        terug waar de gain van dit geluid naartoe moet. */
+    fxFor: function (id) {
+      if (this.fx[id]) return this.fx[id];
+      var ctx = this.ctx;
+      var hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 20;          // 20 Hz = praktisch uit
+      hp.Q.value = 0.707;
+      var pres = ctx.createBiquadFilter();
+      pres.type = 'peaking';
+      pres.frequency.value = 3000;      // waar spraak zijn helderheid heeft
+      pres.Q.value = 0.9;
+      pres.gain.value = 0;
+      hp.connect(pres);
+      pres.connect(this.masterGain);
+      this.fx[id] = { hp: hp, pres: pres };
+      this.applyEdit(id);
+      return this.fx[id];
+    },
+
+    /** Zet de opgeslagen bewerking van dit geluid door naar de filters. */
+    applyEdit: function (id) {
+      var f = this.fx[id], e = this.edit[id] || {};
+      if (!f) return;
+      var t = this.ctx.currentTime;
+      f.hp.frequency.setTargetAtTime(Math.max(20, e.hp || 20), t, 0.01);
+      f.pres.gain.setTargetAtTime(e.presence || 0, t, 0.01);
+    },
+
+    setEdit: function (id, obj) {
+      this.edit[id] = obj || {};
+      this.applyEdit(id);
+    },
+
+    /** Begin- en eindpunt van dit geluid, na bijsnijden. */
+    span: function (id) {
+      var e = this.edit[id] || {};
+      var vol = this.buffers[id] ? this.buffers[id].duration
+              : (this.streams[id] && this.streams[id].el.duration) || (this.defs[id] || {}).duration || 0;
+      var start = Math.max(0, Math.min(e.start || 0, vol));
+      var end = (e.end && e.end > start) ? Math.min(e.end, vol) : vol;
+      return { start: start, end: end, total: vol };
     },
 
     /* ---- volume ------------------------------------------------ */
@@ -218,6 +277,9 @@
         st.gain.gain.cancelScheduledValues(t);
         st.gain.gain.setValueAtTime(1, t);
         try { st.el.currentTime = 0; } catch (e) {}
+        var sp = this.span(id);
+        try { st.el.currentTime = sp.start; } catch (e) {}
+        st.stopAt = sp.end;
         st.el.play().catch(function () {});
         st.duck.gain.cancelScheduledValues(t);   // begint altijd op vol volume
         st.duck.gain.setValueAtTime(1, t);
@@ -240,10 +302,11 @@
       duck.connect(vg);
       vg.connect(this.gains[id]);
 
+      var sp = this.span(id);
       var voice = {
         src: src, gain: vg, duck: duck, duckTarget: 1,
         startedAt: ctx.currentTime,
-        duration: src.buffer.duration,
+        duration: Math.max(0.02, sp.end - sp.start),
         fading: false
       };
       var self = this;
@@ -254,7 +317,7 @@
         try { vg.disconnect(); duck.disconnect(); } catch (e) {}
         self.applyDucking();
       };
-      src.start(0);
+      src.start(0, sp.start, voice.duration);
       this.voices[id].push(voice);
       this.applyDucking();
       return voice;
@@ -416,8 +479,10 @@
     progress: function (id) {
       var st = this.streams[id];
       if (st) {
-        if (!st.el.duration) return 0;
-        return Math.max(0, Math.min(1, st.el.currentTime / st.el.duration));
+        var sp = this.span(id);
+        var lengte = sp.end - sp.start;
+        if (lengte <= 0) return 0;
+        return Math.max(0, Math.min(1, (st.el.currentTime - sp.start) / lengte));
       }
       var list = this.voices[id] || [];
       if (!list.length) return 0;

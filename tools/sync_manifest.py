@@ -47,6 +47,30 @@ GUESS = [
 ]
 
 
+# Aantal punten in de golfvorm die de app tekent. Genoeg detail om een woord
+# te herkennen, klein genoeg om in het manifest te passen.
+GOLF_PUNTEN = 240
+
+
+def waveform(path):
+    """Pieken per tijdvak, als gehele getallen 0-100. Vooraf uitrekenen
+    scheelt de app het decoderen van een nummer van drie minuten alleen om
+    een plaatje te kunnen tekenen."""
+    try:
+        import numpy as np
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from analyze_loudness import read_audio
+        data, _ = read_audio(path)
+        mono = np.abs(data).max(axis=1)
+        vakken = np.array_split(mono, GOLF_PUNTEN)
+        pieken = np.array([v.max() if len(v) else 0.0 for v in vakken])
+        top = pieken.max() or 1.0
+        return [int(round(v / top * 100)) for v in pieken]
+    except Exception as e:
+        print(f"  (golfvorm van {os.path.basename(path)} mislukt: {e})")
+        return None
+
+
 def file_hash(path):
     """Korte hash van de inhoud. Die hangt in de url achter het bestand, zodat
     een vervangen geluid een nieuwe url krijgt en de browser hem opnieuw
@@ -116,6 +140,9 @@ def main():
         pad = os.path.join(AUDIO_DIR, entry["file"])
         if os.path.exists(pad):
             entry["hash"] = file_hash(pad)
+            golf = waveform(pad)
+            if golf:
+                entry["peaks"] = golf
         if entry.get("duration", 0) > STREAM_BOVEN_SECONDEN:
             entry["stream"] = True
         else:

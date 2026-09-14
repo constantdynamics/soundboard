@@ -54,7 +54,7 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
 | **STOP** | alles uitfaden |
 | **Slotje** | bewerkmodus aan/uit |
 | Knop die wordt weggedrukt | dooft op het bord zolang er iets nieuwers speelt |
-| Knop ingedrukt houden | naam, icoon, kleur, volume en plek aanpassen — ook met het slotje dicht |
+| Knop ingedrukt houden | naam, icoon, kleur, bijsnijden, oppoetsen, volume en plek aanpassen — ook met het slotje dicht |
 | Knop aantikken in bewerkmodus | hetzelfde bewerkscherm |
 | Knop naar een lege plek slepen | verhuist daarheen, oude plek blijft open |
 | Knop op een andere knop slepen | die twee wisselen om |
@@ -163,6 +163,28 @@ Hoeveel een browser van een gestreamd bestand vooruit laadt bepaalt hij zelf,
 en op mobiel is dat zuinig. **Instellingen &rarr; Offline klaarzetten** haalt
 daarom elk bestand in zijn geheel op en zet het in de cache. Daarna staat alles
 gegarandeerd lokaal, ook het einde van een nummer van drie minuten.
+
+## Bijsnijden en oppoetsen
+
+In het bewerkscherm van een knop staat de golfvorm van het geluid. Sleep de
+twee grepen om het begin en eind te verleggen; **STILTE ERAF** zoekt de randen
+zelf op en **ALLES** zet het weer helemaal open.
+
+Er wordt niets uit het bestand geknipt. De bijsnijding is een begin- en
+eindpunt in je instellingen: een kort geluid start met die offset, een
+gestreamd nummer springt ernaartoe en stopt op het eindpunt. Dus altijd
+terug te draaien, en het reist mee in je geëxporteerde profiel.
+
+De golfvormen worden vooraf uitgerekend door `tools/sync_manifest.py` en staan
+als 240 punten per geluid in `data/sounds.json`. Zo hoeft de app geen nummer
+van drie minuten te decoderen alleen om een plaatje te kunnen tekenen.
+
+**Oppoetsen** zet twee filters per geluid in de keten: een hoogdoorlaat tegen
+gerommel en gebrom, en een accent rond 3 kHz voor helderheid. Met presets van
+uit tot stem scherp, of zelf schuiven.
+
+Wat dit **niet** kan: muziek of een tweede stem uit een fragment halen. Dat is
+bronscheiding, en dat vraagt een getraind model in plaats van een filter.
 
 ## Wegdrukken
 
