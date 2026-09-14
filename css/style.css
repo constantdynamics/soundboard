@@ -539,6 +539,52 @@ input[type="range"]::-moz-range-thumb {
 }
 .dock-btn[aria-pressed="true"] .shackle { transform: translateX(3px) rotate(0deg); }
 
+/* ---------- balk voor het lopende nummer -------------------------- */
+.nowplaying {
+  position: fixed; z-index: 32;
+  left: calc(var(--safe-l) + 10px); right: calc(var(--safe-r) + 10px);
+  bottom: calc(var(--dock-h) + var(--safe-b) + 8px);
+  padding: 8px 10px 2px; border-radius: 14px;
+  background: rgba(10, 2, 20, .96);
+  border: 1.5px solid rgba(var(--neon-b-rgb), .6);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .7), 0 0 18px rgba(var(--neon-b-rgb), .25);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.np-row { display: flex; align-items: center; gap: 8px; }
+
+.np-play {
+  flex: none; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--neon-b); color: #fff;
+  background: rgba(var(--neon-b-rgb), .18);
+}
+.np-play svg { width: 15px; height: 15px; }
+
+.np-name {
+  flex: 1; min-width: 0; font-size: 10px; letter-spacing: .12em; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.np-jump {
+  flex: none; padding: 6px 8px; border-radius: 9px;
+  border: 1.5px solid var(--line); color: var(--ink-dim);
+  font-size: 9.5px; letter-spacing: .06em;
+}
+.np-jump:active { transform: scale(.93); }
+.np-time {
+  flex: none; font-size: 10px; color: var(--ink-dim);
+  font-variant-numeric: tabular-nums; letter-spacing: .04em;
+}
+.np-close { flex: none; width: 26px; height: 26px; border-radius: 50%;
+  font-size: 18px; line-height: 1; color: var(--ink-faint); }
+
+.np-scrub { margin-top: -2px; }
+.np-scrub::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -5.5px; }
+.np-scrub::-moz-range-thumb { width: 16px; height: 16px; }
+
+/* de prullenbak en het bord schuiven op als de balk er staat */
+body.has-np .trash { bottom: calc(var(--dock-h) + var(--safe-b) + 76px); }
+body.has-np .board { padding-bottom: calc(var(--dock-h) + var(--safe-b) + 96px); }
+
 /* ---------- archiefzone tijdens het slepen ------------------------ */
 .trash {
   position: fixed; z-index: 55; left: 50%;

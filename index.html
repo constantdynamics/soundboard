@@ -91,6 +91,21 @@
   </button>
 </nav>
 
+<div class="nowplaying" id="nowplaying" hidden>
+  <div class="np-row">
+    <button class="np-play" id="np-play" type="button" aria-label="Afspelen of pauzeren">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path id="np-icon" d="M7 4.5l12 7.5-12 7.5z"/></svg>
+    </button>
+    <span class="np-name" id="np-name"></span>
+    <button class="np-jump" id="np-back" type="button">&minus;15</button>
+    <button class="np-jump" id="np-fwd" type="button">+15</button>
+    <span class="np-time" id="np-time">0:00</span>
+    <button class="np-close" id="np-close" type="button" aria-label="Verbergen">&times;</button>
+  </div>
+  <input type="range" class="np-scrub" id="np-scrub" min="0" max="1000" step="1" value="0"
+         aria-label="Positie in het nummer">
+</div>
+
 <div class="trash" id="trash" hidden aria-hidden="true">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
        stroke-linecap="round" stroke-linejoin="round">

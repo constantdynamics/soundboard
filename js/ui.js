@@ -306,6 +306,7 @@
     trigger: function (id, pad) {
       var v = E.play(id);
       if (!v) return;
+      if (E.streams[id]) this.npDismissed = false;
       pad.classList.remove('hit');
       void pad.offsetWidth;
       pad.classList.add('hit');
@@ -459,7 +460,80 @@
         prog.style.width = playing ? (E.progress(id) * 100).toFixed(1) + '%' : '0';
       }
       $('btn-stop').disabled = !E.anyPlaying();
+      this.paintNowPlaying();
       this.paintTimer();
+    },
+
+    npDismissed: false,
+    npScrubbing: false,
+
+    /** De balk met het lopende nummer: alleen voor de lange tracks. */
+    paintNowPlaying: function () {
+      var bar = $('nowplaying');
+      var id = E.currentStream && E.currentStream();
+      if (!id || this.npDismissed) {
+        bar.hidden = true;
+        document.body.classList.remove('has-np');
+        return;
+      }
+      var p = E.streamPos(id);
+      var lengte = Math.max(0.01, p.end - p.start);
+      var verstreken = Math.max(0, p.at - p.start);
+
+      bar.hidden = false;
+      document.body.classList.add('has-np');
+      $('np-name').textContent = this.get(id).label;
+      $('np-time').textContent = fmt(verstreken) + ' / ' + fmt(lengte);
+      $('np-icon').setAttribute('d', p.playing
+        ? 'M7 4.5h3.5v15H7zM13.5 4.5H17v15h-3.5z'      // pauze
+        : 'M7 4.5l12 7.5-12 7.5z');                     // afspelen
+      if (!this.npScrubbing) {
+        $('np-scrub').value = Math.round(verstreken / lengte * 1000);
+      }
+    },
+
+    bindNowPlaying: function () {
+      var self = this;
+      var scrub = $('np-scrub');
+
+      $('np-play').addEventListener('click', function () {
+        var id = E.currentStream();
+        if (!id) return;
+        if (E.streamPos(id).playing) E.pauseStream(id);
+        else E.resumeStream(id);
+        self.wake(); self.paint();
+      });
+
+      function spring(delta) {
+        var id = E.currentStream();
+        if (!id) return;
+        var p = E.streamPos(id);
+        E.seekStream(id, p.at + delta);
+        self.paint();
+      }
+      $('np-back').addEventListener('click', function () { spring(-15); });
+      $('np-fwd').addEventListener('click', function () { spring(15); });
+
+      $('np-close').addEventListener('click', function () {
+        self.npDismissed = true;
+        self.paintNowPlaying();
+      });
+
+      ['pointerdown', 'touchstart'].forEach(function (ev) {
+        scrub.addEventListener(ev, function () { self.npScrubbing = true; });
+      });
+      scrub.addEventListener('input', function () {
+        var id = E.currentStream();
+        if (!id) return;
+        var p = E.streamPos(id);
+        var t = p.start + (this.value / 1000) * (p.end - p.start);
+        E.seekStream(id, t);
+        $('np-time').textContent = fmt(Math.max(0, t - p.start)) + ' / ' +
+          fmt(Math.max(0.01, p.end - p.start));
+      });
+      ['pointerup', 'pointercancel', 'touchend', 'change'].forEach(function (ev) {
+        scrub.addEventListener(ev, function () { self.npScrubbing = false; });
+      });
     },
 
     paintTimer: function () {
@@ -486,6 +560,7 @@
       });
       $('master-vol').addEventListener('change', function () { S.save(); });
 
+      this.bindNowPlaying();
       $('btn-edit').addEventListener('click', function () { self.toggleEdit(); });
       $('btn-settings').addEventListener('click', function () { self.openSettings(); });
 

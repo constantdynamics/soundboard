@@ -60,6 +60,7 @@ neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
 | Knop op een andere knop slepen | die twee wisselen om |
 | Knop naar de prullenbak slepen | gaat naar het archief, blijft bewaard |
 | Timer aantikken | starten / pauzeren |
+| Balk onder het bord | alleen bij lange nummers: pauzeren, hervatten, 15 seconden terug of vooruit, of ergens naartoe schuiven |
 
 Buiten de bewerkmodus kun je niets per ongeluk verslepen of veranderen, en zijn
 lege plekken onzichtbaar — ze houden hun ruimte wel vast, zodat de indeling
@@ -163,6 +164,21 @@ Hoeveel een browser van een gestreamd bestand vooruit laadt bepaalt hij zelf,
 en op mobiel is dat zuinig. **Instellingen &rarr; Offline klaarzetten** haalt
 daarom elk bestand in zijn geheel op en zet het in de cache. Daarna staat alles
 gegarandeerd lokaal, ook het einde van een nummer van drie minuten.
+
+## Lange nummers terugvinden
+
+Zodra er een lang nummer speelt verschijnt er een balk boven de bediening: de
+naam, hoe ver je bent, een schuif over het hele nummer en knoppen voor 15
+seconden terug of vooruit.
+
+Zet je een nummer per ongeluk stil — met STOP, met de fade of met de pauze —
+dan onthoudt de soundboard waar je was. De balk blijft staan en één druk op
+afspelen pakt de draad daar weer op. Een tik op de knop zelf begint gewoon
+weer vooraan, zodat dat voorspelbaar blijft.
+
+De balk verschijnt alleen bij de gestreamde nummers; korte geluiden laten hem
+met rust. Wegklikken kan met het kruisje, en hij komt terug zodra je weer een
+nummer start.
 
 ## Bijsnijden en oppoetsen
 

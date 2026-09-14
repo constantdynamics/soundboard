@@ -178,6 +178,8 @@
       var self = this;
       el.addEventListener('ended', function () {
         self.voices[id] = [];
+        var st = self.streams[id];
+        if (st) st.lastPos = 0;          // aan het eind: volgende keer weer vooraan
         self.applyDucking();
       });
       // stopt op het ingestelde eindpunt in plaats van aan het bestandseinde
@@ -186,11 +188,12 @@
         if (!st || !st.stopAt) return;
         if (el.currentTime >= st.stopAt - 0.02) {
           el.pause();
+          st.lastPos = 0;
           self.voices[id] = [];
           self.applyDucking();
         }
       });
-      this.streams[id] = { el: el, source: source, gain: vg, duck: duck };
+      this.streams[id] = { el: el, source: source, gain: vg, duck: duck, lastPos: 0 };
     },
 
     decode: function (arrayBuffer) {
@@ -278,6 +281,8 @@
         st.gain.gain.setValueAtTime(1, t);
         try { st.el.currentTime = 0; } catch (e) {}
         var sp = this.span(id);
+        st.lastPos = 0;                        // een tik op de knop begint vooraan
+        this.lastStreamId = id;
         try { st.el.currentTime = sp.start; } catch (e) {}
         st.stopAt = sp.end;
         st.el.play().catch(function () {});
@@ -348,7 +353,8 @@
           st.gain.gain.exponentialRampToValueAtTime(0.0001, t + s);
         } catch (e) {}
         setTimeout(function () {
-          try { st.el.pause(); st.el.currentTime = 0; } catch (e) {}
+          // eerst onthouden waar we waren, dan pas terugzetten
+          try { st.lastPos = st.el.currentTime; st.el.pause(); st.el.currentTime = 0; } catch (e) {}
           st.gain.gain.setValueAtTime(1, self.ctx.currentTime);
           self.voices[id] = [];
           self.applyDucking();
@@ -374,6 +380,71 @@
         self.voices[id].slice().forEach(function (v) { self.fadeVoice(v, seconds, id); });
       });
       return any;
+    },
+
+    /* ---- lange nummers: hervatten en verspringen ----------------- */
+
+    /** Is er een lang nummer waar we iets mee kunnen? Geeft het id terug. */
+    currentStream: function () {
+      var self = this, bezig = null, nieuwste = -1;
+      Object.keys(this.streams).forEach(function (id) {
+        var v = (self.voices[id] || [])[0];
+        if (self.voiceCount(id) && v && v.startedAt > nieuwste) {
+          nieuwste = v.startedAt; bezig = id;      // de meest recent gestarte
+        }
+      });
+      if (bezig) return bezig;
+      var laatst = this.lastStreamId;
+      if (laatst && this.streams[laatst] && this.streams[laatst].lastPos > 0.5) return laatst;
+      return null;
+    },
+
+    /** Waar staat dit nummer nu? */
+    streamPos: function (id) {
+      var st = this.streams[id];
+      if (!st) return { at: 0, start: 0, end: 0, playing: false };
+      var sp = this.span(id);
+      var at = this.voiceCount(id) ? st.el.currentTime : (st.lastPos || sp.start);
+      return { at: at, start: sp.start, end: sp.end, playing: this.voiceCount(id) > 0 };
+    },
+
+    /** Pakt de draad weer op waar hij bleef. */
+    resumeStream: function (id) {
+      var st = this.streams[id];
+      if (!st) return;
+      var sp = this.span(id);
+      var t = Math.max(sp.start, Math.min(st.lastPos || sp.start, sp.end - 0.1));
+      var now = this.ctx.currentTime;
+      st.gain.gain.cancelScheduledValues(now);
+      st.gain.gain.setValueAtTime(1, now);
+      st.duck.gain.cancelScheduledValues(now);
+      st.duck.gain.setValueAtTime(1, now);
+      st.stopAt = sp.end;
+      this.lastStreamId = id;
+      try { st.el.currentTime = t; } catch (e) {}
+      st.el.play().catch(function () {});
+      this.voices[id] = [{ stream: true, startedAt: now, fading: false,
+                           duck: st.duck, duckTarget: 1 }];
+      this.applyDucking();
+    },
+
+    pauseStream: function (id) {
+      var st = this.streams[id];
+      if (!st) return;
+      st.lastPos = st.el.currentTime;
+      try { st.el.pause(); } catch (e) {}
+      this.voices[id] = [];
+      this.applyDucking();
+    },
+
+    /** Springt naar een moment; werkt ook als het nummer stilstaat. */
+    seekStream: function (id, seconds) {
+      var st = this.streams[id];
+      if (!st) return;
+      var sp = this.span(id);
+      var t = Math.max(sp.start, Math.min(seconds, sp.end - 0.05));
+      st.lastPos = t;
+      try { st.el.currentTime = t; } catch (e) {}
     },
 
     /* ---- ducken -------------------------------------------------- */
