@@ -6,9 +6,10 @@
      langs de browsercache, en die houdt GitHub Pages-bestanden tien minuten
      vast — dan zie je na een update nog de oude soundboard.                */
 
-var CACHE = 'bfss-v6';
+var CACHE = 'bfss-v7';
 var CORE = [
-  './', './index.html', './css/style.css',
+  './', './index.html', './css/style.css', './css/fonts.css',
+  './fonts/audiowide-400.woff2', './fonts/chakra-petch-600.woff2', './fonts/chakra-petch-700.woff2', './fonts/monoton-400.woff2', './fonts/orbitron-500.woff2', './fonts/orbitron-700.woff2', './fonts/orbitron-900.woff2', './fonts/press-start-2p-400.woff2', './fonts/righteous-400.woff2', './fonts/vt323-400.woff2',
   './js/manifest.js', './js/icons.js', './js/settings.js', './js/audio.js', './js/ui.js', './js/app.js',
   './data/sounds.json', './manifest.webmanifest', './favicon.svg'
 ];

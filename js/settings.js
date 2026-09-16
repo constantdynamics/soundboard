@@ -144,11 +144,21 @@
     },
 
     load: function () {
-      try {
-        var raw = global.localStorage.getItem(KEY);
-        if (raw) this.data = this.merge(defaults(), JSON.parse(raw));
-      } catch (e) {
-        console.warn('Instellingen konden niet worden gelezen:', e);
+      var raw = null;
+      try { raw = global.localStorage.getItem(KEY); }
+      catch (e) { console.warn('Instellingen konden niet worden gelezen:', e); }
+
+      if (raw) {
+        try { this.data = this.merge(defaults(), JSON.parse(raw)); }
+        catch (e) { console.warn('Instellingen waren onleesbaar:', e); }
+      } else if (global.PRESET_SETTINGS) {
+        // Een geëxporteerd bord dat in de pagina is ingebakken (noodpakket).
+        // Alleen bij een schone start: wat je hier daarna aanpast blijft van
+        // jou en wordt niet door de ingebakken versie overschreven.
+        try {
+          this.data = this.merge(defaults(), global.PRESET_SETTINGS);
+          this.save();
+        } catch (e) { console.warn('Ingebakken bord was onleesbaar:', e); }
       }
       return this.data;
     },

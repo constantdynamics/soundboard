@@ -57,10 +57,15 @@
     failed: [],         // geluiden die niet binnenkwamen of niet te decoderen waren
 
     /** Waar de audio vandaan komt. In het noodpakket zit alles ingebakken
-        in de pagina zelf, dan is er helemaal geen bestand meer nodig. */
+        in de pagina zelf, dan is er helemaal geen bestand meer nodig. Het
+        is op bestandsnaam gesleuteld, zodat kopieen (meerdere knoppen op
+        een opname) bij hetzelfde ingebakken geluid uitkomen. */
     srcFor: function (d, base) {
-      var ingebakken = global.AUDIO_DATA && global.AUDIO_DATA[d.id];
-      if (ingebakken) return ingebakken;
+      var bak = global.AUDIO_DATA;
+      if (bak) {
+        var ingebakken = bak[d.file] || bak[d.id];
+        if (ingebakken) return ingebakken;
+      }
       return (base || this.base || 'audio/') + d.file + (d.hash ? '?v=' + d.hash : '');
     },
 

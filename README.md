@@ -96,22 +96,32 @@ twee knoppen:
 | | inhoud | grootte |
 |---|---|---|
 | **ALLES** | alle geluiden | ~31 MB |
-| **ALLEEN KORTE** | zonder de lange nummers | ~3 MB |
+| **ALLEEN KORTE** | zonder de lange nummers | ~9 MB |
 
-Beide leveren één HTML-bestand met de code, de stijl en de audio als
-ingebakken data-urls. Geen server, geen service worker, geen cache. Zet het
-op je telefoon en open het vanuit je bestanden: het werkt zonder enige
+Beide leveren één HTML-bestand met de code, de stijl, de lettertypes en de
+audio als ingebakken data-urls. Geen server, geen service worker, geen cache.
+Zet het op je telefoon en open het vanuit je bestanden: het werkt zonder enige
 verbinding, ook op een toestel dat de site nog nooit heeft gezien.
 
+**Het is een export van jóuw bord.** De namen, kleuren, volgorde, lege plekken,
+het palet, de vulstijl, het archief, de kopieën en hun uitsnedes gaan mee. Bij
+het openen op een schoon toestel staat alles er precies zo bij als bij jou.
+Pas je daarna in het pakket iets aan, dan is dat van jou: de ingebakken versie
+overschrijft je eigen wijzigingen niet meer. Daarmee is het pakket meteen de
+makkelijkste manier om een bord te delen.
+
+**ALLEEN KORTE** laat de lange nummers weg — behalve die waar een kopie op
+staat, want dat fragment zou anders niet werken. De knoppen die eruit vallen
+worden lege plekken in het rooster; de rest schuift niet op.
+
 De app bouwt het ter plekke uit wat er op dat moment in staat, dus het is
-altijd actueel. Hetzelfde kan vanaf de opdrachtregel:
+altijd actueel. Hetzelfde kan vanaf de opdrachtregel, eventueel met een
+geëxporteerd profiel als bord:
 
 ```bash
 python3 tools/build_offline.py
+BORD=~/Downloads/soundboard-profiel.json python3 tools/build_offline.py
 ```
-
-Het enige verschil: zonder netwerk vallen de lettertypes terug op die van je
-toestel. Verder is alles hetzelfde.
 
 ## Updates
 
@@ -335,6 +345,8 @@ Gemeten waarden:
 ```
 index.html              opbouw van de pagina
 css/style.css           synthwave-stijl, mobiel eerst
+css/fonts.css           de lettertypes, uit fonts/ in plaats van bij Google
+fonts/                  de woff2-bestanden (latijnse uitsnede, 126 kB totaal)
 js/icons.js             iconenbibliotheek (inline SVG) + suggesties op naam
 js/settings.js          presets, opslag in de browser, export/import
 js/audio.js             Web Audio: vooraf laden, afspelen, faden, limiter
@@ -347,6 +359,8 @@ tools/                  de meet- en manifestscripts
 ```
 
 Geen build-stap, geen afhankelijkheden: het is gewone HTML, CSS en JavaScript.
+Ook de lettertypes komen van de site zelf en niet van Google, zodat het bord er
+zonder netwerk uitziet zoals het hoort.
 
 ## Publiceren
 

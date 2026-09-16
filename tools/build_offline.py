@@ -10,7 +10,7 @@ garanderen: er valt niets meer weg te vallen.
 
 Gebruik:  python3 tools/build_offline.py [uitvoer.html]
 """
-import base64, mimetypes, os, re, sys
+import base64, json, mimetypes, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = ["js/manifest.js", "js/icons.js", "js/settings.js",
@@ -23,21 +23,24 @@ def lees(pad):
 
 
 def audio_blok():
-    """Alle audio als data-urls, gesleuteld op het id uit het manifest."""
-    import json
+    """Alle audio als data-urls, gesleuteld op de bestandsnaam. Kopieen
+    (meerdere knoppen op een opname) komen zo bij hetzelfde geluid uit."""
     manifest = json.load(open(os.path.join(ROOT, "data", "sounds.json")))
-    regels, totaal = [], 0
+    regels, totaal, gezien = [], 0, set()
     for e in manifest["sounds"]:
+        if e["file"] in gezien:
+            continue
         pad = os.path.join(ROOT, "audio", e["file"])
         if not os.path.exists(pad):
             print(f"  overgeslagen (niet gevonden): {e['file']}")
             continue
+        gezien.add(e["file"])
         soort = mimetypes.guess_type(pad)[0] or "audio/mpeg"
         with open(pad, "rb") as f:
             rauw = f.read()
         totaal += len(rauw)
         b64 = base64.b64encode(rauw).decode("ascii")
-        regels.append(f'  "{e["id"]}": "data:{soort};base64,{b64}"')
+        regels.append(f'  {json.dumps(e["file"])}: "data:{soort};base64,{b64}"')
         print(f"  {e['label']:24s} {len(rauw)/1024:8.0f} kB")
     print(f"  {'-'*24} {totaal/1048576:8.1f} MB aan audio")
     return "window.AUDIO_DATA = {\n" + ",\n".join(regels) + "\n};\n"
@@ -54,6 +57,16 @@ def main():
         '<link rel="stylesheet" href="css/style.css">',
         "<style>\n" + lees("css/style.css") + "\n</style>")
 
+    # de letters erin, als data-urls
+    fonts = lees("css/fonts.css")
+    for rel in sorted(set(re.findall(r"url\((\.\./fonts/[^)]+)\)", fonts))):
+        pad = os.path.join(ROOT, rel.replace("../", ""))
+        with open(pad, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("ascii")
+        fonts = fonts.replace(rel, "data:font/woff2;base64," + b64)
+    html = html.replace('<link rel="stylesheet" href="css/fonts.css">',
+                        "<style>\n" + fonts + "\n</style>")
+
     # losse verwijzingen die zonder server nergens op slaan
     html = html.replace('<link rel="manifest" href="manifest.webmanifest">', "")
     html = html.replace('<link rel="icon" href="favicon.svg" type="image/svg+xml">', "")
@@ -62,9 +75,22 @@ def main():
     # geen service worker: die kan niet vanaf een los bestand, en is hier ook
     # nergens voor nodig - alles zit al in de pagina
     blok = "<script>window.NO_SW = true;</script>\n"
+    bord = os.environ.get("BORD")
+    if bord and os.path.exists(bord):
+        with open(bord, encoding="utf-8") as f:
+            profiel = json.load(f)
+        instellingen = profiel.get("settings", profiel)
+        blok += ("<script>window.PRESET_SETTINGS = "
+                 + json.dumps(instellingen, ensure_ascii=False).replace("<", "\\u003c")
+                 + ";</script>\n")
+        print(f"  bord ingebakken uit {os.path.basename(bord)}")
     blok += "<script>\n" + audio_blok() + "</script>\n"
     for pad in SCRIPTS:
         blok += "<script>\n" + lees(pad) + "\n</script>\n"
+        if pad == "js/manifest.js":
+            blok += ("<script>window.SOUNDS.sounds = window.SOUNDS.sounds"
+                     ".filter(function (d) { return !!window.AUDIO_DATA[d.file]; });"
+                     "</script>\n")
 
     for pad in SCRIPTS:
         html = html.replace(f'<script src="{pad}"></script>', "")

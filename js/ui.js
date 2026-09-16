@@ -941,8 +941,17 @@
       var self = this;
       var bronnen = ['index.html', 'css/style.css', 'js/manifest.js', 'js/icons.js',
                      'js/settings.js', 'js/audio.js', 'js/ui.js', 'js/app.js'];
-      var lijst = this.manifest.filter(function (d) { return metLange || !d.stream; });
-      var totaal = bronnen.length + lijst.length, klaar = 0;
+      // alles waar een knop naar verwijst, inclusief de bronnen van kopieën
+      var nodig = {};
+      (S.data.clones || []).forEach(function (c) { nodig[c.file] = true; });
+      var gezien = {};
+      var lijst = this.manifest.filter(function (d) {
+        if (gezien[d.file]) return false;
+        if (!(metLange || !d.stream || nodig[d.file])) return false;
+        gezien[d.file] = true;
+        return true;
+      });
+      var totaal = bronnen.length + lijst.length + 1, klaar = 0;
       function stap(wat) { klaar++; if (onStatus) onStatus(klaar, totaal, wat); }
 
       function haal(pad) {
@@ -950,6 +959,38 @@
           if (!r.ok) throw new Error(pad + ': ' + r.status);
           return r.text();
         }).then(function (t) { stap(pad); return t; });
+      }
+
+      /** Bakt de letters als data-urls in de stijl in. Ze staan in de map
+          fonts/ van de site zelf, dus hier kan niets van buitenaf misgaan. */
+      function letters() {
+        return fetch('css/fonts.css').then(function (r) {
+          if (!r.ok) throw new Error('fonts.css ' + r.status);
+          return r.text();
+        }).then(function (css) {
+          var paden = (css.match(/url\(\.\.\/fonts\/[^)]+\)/g) || []).map(function (u) {
+            return u.slice(4, -1);          // 'url(' eraf, ')' eraf
+          });
+          var keten = Promise.resolve(css);
+          paden.forEach(function (rel) {
+            keten = keten.then(function (tekst) {
+              return fetch(rel.replace('../', '')).then(function (r) {
+                if (!r.ok) throw new Error(rel + ' ' + r.status);
+                return r.arrayBuffer();
+              }).then(function (buf) {
+                return tekst.replace(rel, 'data:font/woff2;base64,' + base64(buf));
+              });
+            });
+          });
+          return keten;
+        }).then(function (css) {
+          stap('letters');
+          return css;
+        }).catch(function (err) {
+          console.warn('Letters inbakken lukte niet:', err);
+          stap('letters');
+          return '';
+        });
       }
 
       function base64(buf) {
@@ -974,25 +1015,41 @@
               if (!r.ok) throw new Error(d.file + ': ' + r.status);
               return r.arrayBuffer();
             }).then(function (buf) {
-              stukken.push('  "' + d.id + '": "data:audio/mpeg;base64,' + base64(buf) + '"');
+              var ext = (d.file.split('.').pop() || '').toLowerCase();
+              var soort = ext === 'wav' ? 'audio/wav'
+                        : ext === 'ogg' ? 'audio/ogg'
+                        : (ext === 'm4a' || ext === 'mp4' || ext === 'aac') ? 'audio/mp4'
+                        : 'audio/mpeg';
+              stukken.push('  ' + JSON.stringify(d.file) +
+                           ': "data:' + soort + ';base64,' + base64(buf) + '"');
               stap(d.label);
             });
           });
         });
 
-        return keten.then(function () {
+        return keten.then(letters).then(function (fontCss) {
           var html = map['index.html'];
+          html = html.replace('<link rel="stylesheet" href="css/fonts.css">',
+            fontCss ? '<style>\n' + fontCss + '\n</style>' : '');
           html = html.replace('<link rel="stylesheet" href="css/style.css">',
             '<style>\n' + map['css/style.css'] + '\n</style>');
           html = html.replace('<link rel="manifest" href="manifest.webmanifest">', '');
           html = html.replace('<link rel="icon" href="favicon.svg" type="image/svg+xml">', '');
 
           var blok = '<script>window.NO_SW = true;<\/script>\n' +
+            '<script>window.PRESET_SETTINGS = ' +
+              JSON.stringify(S.data).replace(/</g, '\\u003c') + ';<\/script>\n' +
             '<script>window.AUDIO_DATA = {\n' + stukken.join(',\n') + '\n};<\/script>\n';
           ['js/manifest.js', 'js/icons.js', 'js/settings.js', 'js/audio.js',
            'js/ui.js', 'js/app.js'].forEach(function (p) {
             html = html.replace('<script src="' + p + '"><\/script>', '');
             blok += '<script>\n' + map[p] + '\n<\/script>\n';
+            // meteen na het manifest: wat er niet in zit hoort ook niet op
+            // het bord. Anders staan er knoppen die nergens meer bij kunnen.
+            if (p === 'js/manifest.js') {
+              blok += '<script>window.SOUNDS.sounds = window.SOUNDS.sounds' +
+                      '.filter(function (d) { return !!window.AUDIO_DATA[d.file]; });<\/script>\n';
+            }
           });
           html = html.replace('</body>', blok + '</body>');
           html = html.replace('<title>The Big Fat Speech Soundboard</title>',
@@ -1043,10 +1100,12 @@
 
       var veld = this.field('NOODPAKKET', '', box);
       veld.appendChild(el('p', 'hint',
-        'Downloadt één HTML-bestand met de code én alle audio erin. Geen server, ' +
-        'geen cache, niets dat kan wegvallen: je zet het op je telefoon en het ' +
-        'werkt zonder enige verbinding. ALLEEN KORTE laat de lange nummers weg — ' +
-        'een stuk kleiner, en je clous heb je dan nog steeds.'));
+        'Downloadt één HTML-bestand met de code, de letters én alle audio erin, ' +
+        'precies zoals jouw bord er nu bij staat: namen, kleuren, volgorde, gaten, ' +
+        'kopieën en uitsnedes. Geen server, geen cache, niets dat kan wegvallen — ' +
+        'je zet het op je telefoon en het werkt zonder enige verbinding. Ook handig ' +
+        'om te delen. ALLEEN KORTE laat de lange nummers weg (behalve die waar een ' +
+        'kopie op staat); die knoppen worden daar dan lege plekken.'));
       body.appendChild(veld);
     },
 
