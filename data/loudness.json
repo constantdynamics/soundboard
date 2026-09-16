@@ -200,6 +200,17 @@
       "sampleRate": 48000,
       "channels": 2
     },
+    "pian-di-cascina.mp3": {
+      "lufs": -17.83,
+      "momentaryMax": -11.25,
+      "peakDb": -0.07,
+      "workPeakDb": -4.63,
+      "gainDb": 1.83,
+      "peakAfterDb": 1.76,
+      "duration": 183.401,
+      "sampleRate": 48000,
+      "channels": 1
+    },
     "rodriguez.mp3": {
       "lufs": -16.46,
       "momentaryMax": -13.17,

@@ -97,8 +97,15 @@
 
     init: function (defs) {
       var self = this;
-      this.defs = defs;
-      defs.forEach(function (d) { self.byId[d.id] = d; });
+      this.manifest = defs;
+      // kopieën staan in de instellingen, niet in het manifest
+      var clones = (S.data.clones || []).filter(function (c) {
+        return c && c.id && c.file && defs.some(function (d) { return d.file === c.file; });
+      });
+      S.data.clones = clones;
+      this.defs = defs.concat(clones);
+      this.byId = {};
+      this.defs.forEach(function (d) { self.byId[d.id] = d; });
 
       // De volgorde is een rooster van plekken: elke plek bevat een geluid
       // of is leeg (null). Onbekende of dubbele namen worden een lege plek,
@@ -385,6 +392,57 @@
         if (d < bestD) { bestD = d; best = c; }
       }
       return best;
+    },
+
+    /** Maakt een tweede knop op hetzelfde geluid. */
+    cloneSound: function (id) {
+      var self = this;
+      var bron = this.byId[id];
+      if (!bron) return;
+      var basis = bron.file.replace(/\.[a-z0-9]+$/i, '');
+      var n = 2, nieuwId;
+      do { nieuwId = basis + '--' + n; n++; } while (this.byId[nieuwId]);
+
+      var kopie = {
+        id: nieuwId, file: bron.file,
+        label: (this.get(id).label + ' ' + (n - 1)).slice(0, 40),
+        icon: this.get(id).icon, color: this.get(id).color,
+        gainDb: bron.gainDb, duration: bron.duration,
+        peaks: bron.peaks, hash: bron.hash
+        // bewust geen stream: een fragment hoort direct te klinken
+      };
+      S.data.clones.push(kopie);
+      this.byId[nieuwId] = kopie;
+      this.defs.push(kopie);
+
+      var plek = S.data.order.indexOf(id);
+      if (plek >= 0) S.data.order.splice(plek + 1, 0, nieuwId);
+      else S.data.order.push(nieuwId);
+      S.save();
+      this.renderBoard();
+
+      E.loadOne(kopie).then(function () {
+        self.pushEdit(nieuwId);
+        self.openPadSheet(nieuwId);
+      });
+    },
+
+    /** Haalt een kopie helemaal weg (het oorspronkelijke geluid blijft). */
+    removeClone: function (id) {
+      if (!global.confirm('Deze kopie weghalen? Het geluid zelf blijft staan.')) return;
+      E.dropSound(id);
+      S.data.clones = (S.data.clones || []).filter(function (c) { return c.id !== id; });
+      var i = S.data.order.indexOf(id);
+      if (i >= 0) S.data.order[i] = null;
+      S.data.order = trimTail(S.data.order);
+      var k = (S.data.archived || []).indexOf(id);
+      if (k >= 0) S.data.archived.splice(k, 1);
+      delete S.data.sounds[id];
+      delete this.byId[id];
+      this.defs = this.defs.filter(function (d) { return d.id !== id; });
+      S.save();
+      this.closeSheets();
+      this.renderBoard();
     },
 
     /** Haalt een knop van het bord en bewaart hem in het archief. */
@@ -1105,6 +1163,25 @@
       right.type = 'button';
       right.addEventListener('click', function () { self.move(id, 1); self.renderPadSheet(); });
       moveRow.appendChild(left); moveRow.appendChild(right);
+      var kopieRow = el('div', 'row');
+      var kopieBtn = el('button', 'btn btn--accent', 'KOPIE MAKEN');
+      kopieBtn.type = 'button';
+      kopieBtn.addEventListener('click', function () { self.cloneSound(id); });
+      kopieRow.appendChild(kopieBtn);
+      var isKopie = (S.data.clones || []).some(function (c) { return c.id === id; });
+      if (isKopie) {
+        var wegBtn = el('button', 'btn btn--danger', 'KOPIE WEGHALEN');
+        wegBtn.type = 'button';
+        wegBtn.addEventListener('click', function () { self.removeClone(id); });
+        kopieRow.appendChild(wegBtn);
+      }
+      var kopieField = this.field('MEERDERE FRAGMENTEN', '', kopieRow);
+      kopieField.appendChild(el('p', 'hint',
+        'Een kopie is een tweede knop op hetzelfde geluid, met een eigen naam, ' +
+        'kleur en uitsnede. Zo haal je meerdere fragmenten uit één opname. Het ' +
+        'geluid wordt maar één keer ingeladen, hoeveel kopieën je ook maakt.'));
+      body.appendChild(kopieField);
+
       var archRow = el('div', 'row');
       var archBtn = el('button', 'btn btn--danger', 'NAAR ARCHIEF');
       archBtn.type = 'button';

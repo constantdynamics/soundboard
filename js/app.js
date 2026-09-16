@@ -4,7 +4,7 @@
 (function (global) {
   'use strict';
 
-  global.APP_VERSION = '2026.09.16-3';
+  global.APP_VERSION = '2026.09.16-4';
 
   var S = global.Settings, E = global.AudioEngine, UI = global.UI;
   var splash = document.getElementById('splash');
@@ -78,6 +78,15 @@
         E.setMaster(S.data.masterVolume);
 
         UI.init(defs);
+        // kopieën die al bestonden er alsnog bij laden
+        var clones = S.data.clones || [];
+        if (clones.length) {
+          Promise.all(clones.map(function (c) { return E.loadOne(c); }))
+            .then(function () {
+              clones.forEach(function (c) { UI.pushEdit(c.id); });
+              UI.paint();
+            });
+        }
         tellServiceWorker(defs);
         splash.classList.add('gone');
         setTimeout(function () { splash.hidden = true; }, 450);

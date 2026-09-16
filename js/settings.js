@@ -126,6 +126,7 @@
       showLabels: true,
       order: [],
       archived: [],
+      clones: [],
       sounds: {}        // id -> { label, icon, color, trimDb }
     };
   }
@@ -156,7 +157,7 @@
       Object.keys(base).forEach(function (k) {
         if (saved[k] === undefined || saved[k] === null) return;
         if (k === 'sounds' && typeof saved[k] === 'object') base[k] = saved[k];
-        else if ((k === 'order' || k === 'archived') && Array.isArray(saved[k])) base[k] = saved[k];
+        else if ((k === 'order' || k === 'archived' || k === 'clones') && Array.isArray(saved[k])) base[k] = saved[k];
         else if (typeof base[k] !== 'object') base[k] = saved[k];
       });
       return base;

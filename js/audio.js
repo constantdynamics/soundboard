@@ -72,7 +72,15 @@
       defs.forEach(function (d) { self.defs[d.id] = d; });
 
       this.base = base;
-      var haal = defs.filter(function (d) { return !d.stream; });
+      // meerdere knoppen kunnen hetzelfde bestand gebruiken (kopieën); dan
+      // halen we het bestand één keer op en delen we het resultaat
+      var gezien = {};
+      var haal = defs.filter(function (d) {
+        if (d.stream || gezien[d.file]) return false;
+        gezien[d.file] = d.id;
+        return true;
+      });
+      this.eersteVan = gezien;
       var total = haal.length || 1, done = 0;
       return Promise.all(haal.map(function (d) {
         var url = self.srcFor(d, base);
@@ -83,6 +91,8 @@
           })
           .then(function (buf) {
             self.raw[d.id] = buf;
+            self.rawVan = self.rawVan || {};
+            self.rawVan[d.file] = d.id;
             done++;
             if (self.onprogress) self.onprogress(done / total * 0.65, d.label);
           })
@@ -125,16 +135,26 @@
 
       return resume.then(function () {
         var ids = Object.keys(self.raw), total = ids.length, done = 0;
+        // de knoppen die hetzelfde bestand delen, krijgen straks dezelfde buffer
+        var delers = {};
+        Object.keys(self.defs).forEach(function (id) {
+          var d = self.defs[id];
+          if (d.stream) return;
+          (delers[d.file] = delers[d.file] || []).push(id);
+        });
         return Promise.all(ids.map(function (id) {
           return self.decode(self.raw[id]).then(function (buf) {
-            self.buffers[id] = buf;
-            var k = self.failed.indexOf(id);
-            if (k >= 0) self.failed.splice(k, 1);   // tweede poging gelukt
-            var g = self.ctx.createGain();
-            g.gain.value = self.gainFor(id);
-            self.gains[id] = g;
-            g.connect(self.fxFor(id).hp);
-            self.voices[id] = [];
+            (delers[self.defs[id].file] || [id]).forEach(function (deler) {
+              self.buffers[deler] = buf;          // zelfde geluid, eigen knop
+              var k = self.failed.indexOf(deler);
+              if (k >= 0) self.failed.splice(k, 1);
+              if (self.gains[deler]) return;
+              var g = self.ctx.createGain();
+              g.gain.value = self.gainFor(deler);
+              self.gains[deler] = g;
+              g.connect(self.fxFor(deler).hp);
+              self.voices[deler] = [];
+            });
             done++;
             if (self.onprogress) self.onprogress(0.65 + done / total * 0.35, self.defs[id].label);
           }).catch(function (err) {
@@ -459,6 +479,61 @@
       var t = Math.max(sp.start, Math.min(seconds, sp.end - 0.05));
       st.lastPos = t;
       try { st.el.currentTime = t; } catch (e) {}
+    },
+
+    /* ---- een geluid er later bij laden (voor kopieën) ------------ */
+
+    /** Laadt één geluid na het opstarten. Gebruikt een al gedecodeerde
+        buffer van hetzelfde bestand als die er is, zodat tien fragmenten
+        uit één opname samen niet meer geheugen kosten dan één. */
+    loadOne: function (def) {
+      var self = this;
+      this.defs[def.id] = def;
+      if (this.buffers[def.id]) return Promise.resolve(true);
+
+      function koppel(buf) {
+        self.buffers[def.id] = buf;
+        if (!self.gains[def.id]) {
+          var g = self.ctx.createGain();
+          g.gain.value = self.gainFor(def.id);
+          self.gains[def.id] = g;
+          g.connect(self.fxFor(def.id).hp);
+        }
+        self.voices[def.id] = [];
+        return true;
+      }
+
+      var zelfde = null;
+      Object.keys(this.buffers).forEach(function (id) {
+        if (!zelfde && self.defs[id] && self.defs[id].file === def.file) zelfde = self.buffers[id];
+      });
+      if (zelfde) return Promise.resolve(koppel(zelfde));
+
+      return fetch(this.srcFor(def))
+        .then(function (r) {
+          if (!r.ok) throw new Error(r.status);
+          return r.arrayBuffer();
+        })
+        .then(function (b) { return self.decode(b); })
+        .then(koppel)
+        .catch(function (err) {
+          console.error('Kopie laden mislukt:', def.id, err);
+          if (self.failed.indexOf(def.id) < 0) self.failed.push(def.id);
+          return false;
+        });
+    },
+
+    /** Haalt een kopie weer helemaal weg. */
+    dropSound: function (id) {
+      this.fade(id, 0.1);
+      delete this.buffers[id];
+      delete this.defs[id];
+      delete this.voices[id];
+      try { if (this.gains[id]) this.gains[id].disconnect(); } catch (e) {}
+      delete this.gains[id];
+      try { if (this.fx[id]) { this.fx[id].hp.disconnect(); this.fx[id].pres.disconnect(); } } catch (e) {}
+      delete this.fx[id];
+      delete this.edit[id];
     },
 
     /* ---- ducken -------------------------------------------------- */

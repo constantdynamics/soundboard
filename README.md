@@ -234,6 +234,24 @@ uit tot stem scherp, of zelf schuiven.
 Wat dit **niet** kan: muziek of een tweede stem uit een fragment halen. Dat is
 bronscheiding, en dat vraagt een getraind model in plaats van een filter.
 
+## Meerdere fragmenten uit één opname
+
+In het bewerkscherm van een knop staat **KOPIE MAKEN**. Dat zet een tweede
+knop op hetzelfde geluid, met een eigen naam, kleur, icoon en uitsnede. Zo
+haal je uit één lange opname zoveel losse knoppen als je wilt.
+
+Het geluid wordt maar één keer opgehaald en gedecodeerd; alle kopieën delen
+diezelfde buffer. Tien fragmenten uit een opname van drie minuten kosten dus
+evenveel geheugen als één.
+
+Een kopie speelt altijd uit het geheugen, ook als het origineel gestreamd
+wordt. Een fragment is kort en moet direct klinken.
+
+Kopieën staan in je instellingen, niet in het manifest. Ze reizen mee in je
+geëxporteerde profiel, maar niet naar een ander apparaat of naar het
+noodpakket. Wil je ze definitief maken, laat de tijdstippen dan als losse
+bestanden uitknippen.
+
 ## Wegdrukken
 
 Het nieuwste geluid houdt zijn volle volume; alles wat al liep zakt weg met
@@ -302,6 +320,7 @@ Gemeten waarden:
 | DIAMONDS | 208.8s | -13.59 | -2.41 dB |
 | FORTUNA | 188.2s | -14.37 | -1.63 dB |
 | FORTUNA 2 | 181.2s | -13.13 | -2.87 dB |
+| PIAN DI CASCINA | 183.4s | -17.83 | +1.83 dB |
 
 ## Opbouw
 
