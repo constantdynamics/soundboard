@@ -7,3 +7,6 @@ __pycache__/
 # Het noodpakket wordt gemaakt met tools/build_offline.py en is 25 MB;
 # dat hoort niet in de geschiedenis van de repo thuis.
 *noodpakket*.html
+
+# per ongeluk door een testscript aangemaakt
+undefined/
