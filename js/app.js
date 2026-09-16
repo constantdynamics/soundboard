@@ -4,7 +4,7 @@
 (function (global) {
   'use strict';
 
-  global.APP_VERSION = '2026.09.16-4';
+  global.APP_VERSION = '2026.09.16-5';
 
   var S = global.Settings, E = global.AudioEngine, UI = global.UI;
   var splash = document.getElementById('splash');
@@ -152,7 +152,7 @@
     bar.hidden = true;
   });
 
-  if ('serviceWorker' in navigator) {
+  if (!global.NO_SW && 'serviceWorker' in navigator) {
     global.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js').then(function (reg) {
         if (reg.waiting && navigator.serviceWorker.controller) offerUpdate(reg.waiting);

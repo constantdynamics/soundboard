@@ -59,16 +59,12 @@ def main():
     html = html.replace('<link rel="icon" href="favicon.svg" type="image/svg+xml">', "")
 
     # scripts erin, met de audio ervoor
-    blok = "<script>\n" + audio_blok() + "</script>\n"
+    # geen service worker: die kan niet vanaf een los bestand, en is hier ook
+    # nergens voor nodig - alles zit al in de pagina
+    blok = "<script>window.NO_SW = true;</script>\n"
+    blok += "<script>\n" + audio_blok() + "</script>\n"
     for pad in SCRIPTS:
-        code = lees(pad)
-        if pad == "js/app.js":
-            # geen service worker: die kan niet vanaf een los bestand, en is
-            # hier ook nergens voor nodig - alles zit al in de pagina
-            code = re.sub(r"  if \('serviceWorker' in navigator\) \{.*?\n  \}\n",
-                          "  /* service worker weggelaten: niet nodig in het noodpakket */\n",
-                          code, flags=re.S)
-        blok += "<script>\n" + code + "\n</script>\n"
+        blok += "<script>\n" + lees(pad) + "\n</script>\n"
 
     for pad in SCRIPTS:
         html = html.replace(f'<script src="{pad}"></script>', "")

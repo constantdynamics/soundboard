@@ -692,6 +692,7 @@
       /* offline klaarzetten - staat bovenaan, want dit check je vlak
          voor een speech en niet ergens onderin een lijst */
       this.renderOffline(body);
+      this.renderPackage(body);
 
       /* lettertype */
       body.appendChild(this.field('LETTERTYPE', '', this.chipRow(S.FONTS, d.font, function (it) {
@@ -929,6 +930,124 @@
       Promise.all(done).catch(function () {}).then(function () {
         global.location.reload();
       });
+    },
+
+    /* ---- noodpakket: één bestand met alles erin -------------------- */
+
+    /** Bouwt in de browser één HTML-bestand met de code, de stijl en alle
+        audio als data-urls, en biedt het aan om te downloaden. Zo is het
+        altijd actueel en hoeft er niets van buitenaf te komen. */
+    buildPackage: function (metLange, onStatus) {
+      var self = this;
+      var bronnen = ['index.html', 'css/style.css', 'js/manifest.js', 'js/icons.js',
+                     'js/settings.js', 'js/audio.js', 'js/ui.js', 'js/app.js'];
+      var lijst = this.manifest.filter(function (d) { return metLange || !d.stream; });
+      var totaal = bronnen.length + lijst.length, klaar = 0;
+      function stap(wat) { klaar++; if (onStatus) onStatus(klaar, totaal, wat); }
+
+      function haal(pad) {
+        return fetch(pad).then(function (r) {
+          if (!r.ok) throw new Error(pad + ': ' + r.status);
+          return r.text();
+        }).then(function (t) { stap(pad); return t; });
+      }
+
+      function base64(buf) {
+        var bytes = new Uint8Array(buf), stukjes = [], grootte = 0x8000;
+        for (var i = 0; i < bytes.length; i += grootte) {
+          stukjes.push(String.fromCharCode.apply(null, bytes.subarray(i, i + grootte)));
+        }
+        return btoa(stukjes.join(''));
+      }
+
+      return Promise.all(bronnen.map(haal)).then(function (tekst) {
+        var map = {};
+        bronnen.forEach(function (p, i) { map[p] = tekst[i]; });
+
+        // audio er een voor een bij, zodat een telefoon niet alles tegelijk
+        // in het geheugen hoeft te hebben
+        var stukken = [];
+        var keten = Promise.resolve();
+        lijst.forEach(function (d) {
+          keten = keten.then(function () {
+            return fetch(E.srcFor(d)).then(function (r) {
+              if (!r.ok) throw new Error(d.file + ': ' + r.status);
+              return r.arrayBuffer();
+            }).then(function (buf) {
+              stukken.push('  "' + d.id + '": "data:audio/mpeg;base64,' + base64(buf) + '"');
+              stap(d.label);
+            });
+          });
+        });
+
+        return keten.then(function () {
+          var html = map['index.html'];
+          html = html.replace('<link rel="stylesheet" href="css/style.css">',
+            '<style>\n' + map['css/style.css'] + '\n</style>');
+          html = html.replace('<link rel="manifest" href="manifest.webmanifest">', '');
+          html = html.replace('<link rel="icon" href="favicon.svg" type="image/svg+xml">', '');
+
+          var blok = '<script>window.NO_SW = true;<\/script>\n' +
+            '<script>window.AUDIO_DATA = {\n' + stukken.join(',\n') + '\n};<\/script>\n';
+          ['js/manifest.js', 'js/icons.js', 'js/settings.js', 'js/audio.js',
+           'js/ui.js', 'js/app.js'].forEach(function (p) {
+            html = html.replace('<script src="' + p + '"><\/script>', '');
+            blok += '<script>\n' + map[p] + '\n<\/script>\n';
+          });
+          html = html.replace('</body>', blok + '</body>');
+          html = html.replace('<title>The Big Fat Speech Soundboard</title>',
+            '<title>The Big Fat Speech Soundboard \u2014 noodpakket</title>');
+
+          var blob = new Blob([html], { type: 'text/html' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = 'soundboard-noodpakket' + (metLange ? '' : '-kort') + '.html';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+          return { mb: blob.size / 1048576, aantal: lijst.length };
+        });
+      });
+    },
+
+    renderPackage: function (body) {
+      var self = this;
+      var box = el('div');
+      var line = el('div', 'offline-line', 'ÉÉN BESTAND MET ALLES ERIN');
+      var bar = el('div', 'offline-bar', '<i></i>');
+      var row = el('div', 'row');
+      var alles = el('button', 'btn', 'ALLES');
+      var kort = el('button', 'btn', 'ALLEEN KORTE');
+      alles.type = kort.type = 'button';
+      row.appendChild(alles); row.appendChild(kort);
+      box.appendChild(line); box.appendChild(bar); box.appendChild(row);
+
+      function bouw(knop, metLange) {
+        alles.disabled = kort.disabled = true;
+        bar.firstChild.style.width = '0';
+        self.buildPackage(metLange, function (n, t, wat) {
+          line.textContent = 'INPAKKEN… ' + n + ' VAN ' + t;
+          bar.firstChild.style.width = (n / t * 100) + '%';
+        }).then(function (r) {
+          line.textContent = 'KLAAR — ' + r.aantal + ' GELUIDEN, ' + r.mb.toFixed(1) + ' MB';
+          alles.disabled = kort.disabled = false;
+        }).catch(function (err) {
+          line.textContent = 'MISLUKT: ' + (err && err.message ? err.message : err);
+          alles.disabled = kort.disabled = false;
+        });
+      }
+      alles.addEventListener('click', function () { bouw(alles, true); });
+      kort.addEventListener('click', function () { bouw(kort, false); });
+
+      var veld = this.field('NOODPAKKET', '', box);
+      veld.appendChild(el('p', 'hint',
+        'Downloadt één HTML-bestand met de code én alle audio erin. Geen server, ' +
+        'geen cache, niets dat kan wegvallen: je zet het op je telefoon en het ' +
+        'werkt zonder enige verbinding. ALLEEN KORTE laat de lange nummers weg — ' +
+        'een stuk kleiner, en je clous heb je dan nog steeds.'));
+      body.appendChild(veld);
     },
 
     /** Toont of alle geluiden al opgeslagen zijn, met een knop om de rest

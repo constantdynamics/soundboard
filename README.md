@@ -90,17 +90,25 @@ De soundboard is gebouwd om te blijven werken als er iets wegvalt:
 
 ### Noodpakket: één bestand, nul afhankelijkheden
 
-Voor als het écht niet mis mag gaan:
+Voor als het écht niet mis mag gaan. In **Instellingen → Noodpakket** staan
+twee knoppen:
+
+| | inhoud | grootte |
+|---|---|---|
+| **ALLES** | alle geluiden | ~31 MB |
+| **ALLEEN KORTE** | zonder de lange nummers | ~3 MB |
+
+Beide leveren één HTML-bestand met de code, de stijl en de audio als
+ingebakken data-urls. Geen server, geen service worker, geen cache. Zet het
+op je telefoon en open het vanuit je bestanden: het werkt zonder enige
+verbinding, ook op een toestel dat de site nog nooit heeft gezien.
+
+De app bouwt het ter plekke uit wat er op dat moment in staat, dus het is
+altijd actueel. Hetzelfde kan vanaf de opdrachtregel:
 
 ```bash
 python3 tools/build_offline.py
 ```
-
-Dat maakt één HTML-bestand van ongeveer 25 MB met de code, de stijl, het
-manifest en alle audio als ingebakken data-urls. Geen server, geen service
-worker, geen cache. Zet het op je telefoon en open het vanuit je bestanden:
-het werkt zonder enige verbinding, ook op een toestel dat de site nog nooit
-heeft gezien.
 
 Het enige verschil: zonder netwerk vallen de lettertypes terug op die van je
 toestel. Verder is alles hetzelfde.
