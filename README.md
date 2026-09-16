@@ -292,6 +292,11 @@ Gemeten waarden:
 | 1000 GOOD INTENTIONS | 5.1s | -14.82 | -1.18 dB |
 | RODRIGUEZ | 29.9s | -16.46 | +0.46 dB |
 | ALS GE DIT ZIET | 6.0s | -16.77 | +0.77 dB |
+| CLIP 1 | 1.1s | -20.35 | +4.35 dB |
+| CLIP 2 | 1.5s | -20.9 | +4.90 dB |
+| CLIP 3 | 1.8s | -18.58 | +2.58 dB |
+| CLIP 4 | 1.5s | -15.43 | -0.57 dB |
+| CLIP 5 | 1.2s | -19.91 | +3.91 dB |
 | LOYAL FRIENDS | 159.6s | -13.9 | -2.10 dB |
 | DIAMONDS | 208.8s | -13.59 | -2.41 dB |
 | FORTUNA | 188.2s | -14.37 | -1.63 dB |

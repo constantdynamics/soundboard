@@ -57,6 +57,61 @@
       "sampleRate": 48000,
       "channels": 2
     },
+    "clip-1.mp3": {
+      "lufs": -20.35,
+      "momentaryMax": -19.4,
+      "peakDb": -7.36,
+      "workPeakDb": -9.46,
+      "gainDb": 4.35,
+      "peakAfterDb": -3.01,
+      "duration": 1.138,
+      "sampleRate": 44100,
+      "channels": 2
+    },
+    "clip-2.mp3": {
+      "lufs": -20.9,
+      "momentaryMax": -17.1,
+      "peakDb": -8.3,
+      "workPeakDb": -9.94,
+      "gainDb": 4.9,
+      "peakAfterDb": -3.4,
+      "duration": 1.493,
+      "sampleRate": 48000,
+      "channels": 2
+    },
+    "clip-3.mp3": {
+      "lufs": -18.58,
+      "momentaryMax": -15.38,
+      "peakDb": -7.3,
+      "workPeakDb": -9.41,
+      "gainDb": 2.58,
+      "peakAfterDb": -4.72,
+      "duration": 1.792,
+      "sampleRate": 48000,
+      "channels": 2
+    },
+    "clip-4.mp3": {
+      "lufs": -15.43,
+      "momentaryMax": -13.26,
+      "peakDb": -7.23,
+      "workPeakDb": -7.87,
+      "gainDb": -0.57,
+      "peakAfterDb": -7.8,
+      "duration": 1.472,
+      "sampleRate": 48000,
+      "channels": 2
+    },
+    "clip-5.mp3": {
+      "lufs": -19.91,
+      "momentaryMax": -17.74,
+      "peakDb": -7.16,
+      "workPeakDb": -9.32,
+      "gainDb": 3.91,
+      "peakAfterDb": -3.25,
+      "duration": 1.184,
+      "sampleRate": 44100,
+      "channels": 2
+    },
     "codetaal-quiz-2.mp3": {
       "lufs": -13.57,
       "momentaryMax": -10.62,
