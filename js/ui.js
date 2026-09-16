@@ -867,8 +867,11 @@
       });
       profField.appendChild(resetBtn);
       profField.appendChild(el('p', 'hint',
-        'Je instellingen worden automatisch in deze browser bewaard. ' +
-        'Exporteren geeft je een JSON-bestand als reservekopie of om op een ander apparaat te gebruiken.'));
+        'Je instellingen worden automatisch in deze browser bewaard. Exporteren ' +
+        'geeft je een klein JSON-bestand met je hele bord erin: als reservekopie, ' +
+        'om op een ander apparaat te gebruiken, of om het bord te delen zodat ' +
+        'iemand er iets aan kan verbeteren. Wil je het bord mét de geluiden ' +
+        'meesturen, gebruik dan het noodpakket hierboven.'));
       body.appendChild(profField);
 
       /* archief */
