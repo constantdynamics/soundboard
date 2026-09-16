@@ -297,6 +297,7 @@ Gemeten waarden:
 | CLIP 3 | 1.8s | -18.58 | +2.58 dB |
 | CLIP 4 | 1.5s | -15.43 | -0.57 dB |
 | CLIP 5 | 1.2s | -19.91 | +3.91 dB |
+| TYPE | 0.7s | -18.06 | +2.06 dB |
 | LOYAL FRIENDS | 159.6s | -13.9 | -2.10 dB |
 | DIAMONDS | 208.8s | -13.59 | -2.41 dB |
 | FORTUNA | 188.2s | -14.37 | -1.63 dB |

@@ -53,6 +53,17 @@
   add('guitar', 'Gitaar', ['gitaar', 'band', 'rock', 'muziek', 'solo'],
     '<circle cx="8.5" cy="15.5" r="5.8"/><circle cx="8.5" cy="15.5" r="1.8"/><path d="M12.7 11.3 17.8 6.2"/><path d="M16.3 4.7 19.3 7.7"/>');
 
+  add('keyboard', 'Toetsenbord', ['typen', 'toetsenbord', 'tikken', 'type', 'computer', 'schrijven'],
+    '<rect x="2.4" y="6.4" width="19.2" height="11.2" rx="2.2"/>' +
+    '<rect x="5.2" y="9.2" width="1.9" height="1.9" rx=".5" fill="currentColor" stroke="none"/>' +
+    '<rect x="8.5" y="9.2" width="1.9" height="1.9" rx=".5" fill="currentColor" stroke="none"/>' +
+    '<rect x="11.8" y="9.2" width="1.9" height="1.9" rx=".5" fill="currentColor" stroke="none"/>' +
+    '<rect x="15.1" y="9.2" width="1.9" height="1.9" rx=".5" fill="currentColor" stroke="none"/>' +
+    '<rect x="6.9" y="12" width="1.9" height="1.9" rx=".5" fill="currentColor" stroke="none"/>' +
+    '<rect x="10.2" y="12" width="1.9" height="1.9" rx=".5" fill="currentColor" stroke="none"/>' +
+    '<rect x="13.5" y="12" width="1.9" height="1.9" rx=".5" fill="currentColor" stroke="none"/>' +
+    '<rect x="7.6" y="14.6" width="8.8" height="1.6" rx=".6" fill="currentColor" stroke="none"/>');
+
   add('piano', 'Toetsen', ['piano', 'toetsen', 'keyboard', 'synth', 'muziek'],
     '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v14M12 5v14M16 5v14"/><rect x="6.1" y="5" width="2.4" height="8" rx=".6" fill="currentColor" stroke="none"/><rect x="10.5" y="5" width="2.4" height="8" rx=".6" fill="currentColor" stroke="none"/><rect x="15" y="5" width="2.4" height="8" rx=".6" fill="currentColor" stroke="none"/>');
 

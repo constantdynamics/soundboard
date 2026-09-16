@@ -222,6 +222,17 @@
       "sampleRate": 44100,
       "channels": 2
     },
+    "type.mp3": {
+      "lufs": -18.06,
+      "momentaryMax": -16.03,
+      "peakDb": -6.2,
+      "workPeakDb": -6.99,
+      "gainDb": 2.06,
+      "peakAfterDb": -4.14,
+      "duration": 0.65,
+      "sampleRate": 44100,
+      "channels": 2
+    },
     "whatsapp-15-14.mp3": {
       "lufs": -38.22,
       "momentaryMax": -35.38,
