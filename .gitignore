@@ -3,3 +3,7 @@ Thumbs.db
 node_modules/
 __pycache__/
 *.pyc
+
+# Het noodpakket wordt gemaakt met tools/build_offline.py en is 25 MB;
+# dat hoort niet in de geschiedenis van de repo thuis.
+*noodpakket*.html

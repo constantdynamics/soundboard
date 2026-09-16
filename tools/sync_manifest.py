@@ -16,6 +16,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AUDIO_DIR = os.path.join(ROOT, "audio")
 LOUDNESS = os.path.join(ROOT, "data", "loudness.json")
 MANIFEST = os.path.join(ROOT, "data", "sounds.json")
+# Dezelfde gegevens, maar als gewoon script. De app leest dit en haalt het
+# manifest dus niet meer op met fetch. Een script hoort bij de pagina zelf:
+# als de pagina laadt, is dit er. Een fetch kan los van de pagina mislukken,
+# en dan stond de soundboard stil.
+MANIFEST_JS = os.path.join(ROOT, "js", "manifest.js")
 
 # Geluiden langer dan dit worden gestreamd in plaats van vooraf gedecodeerd.
 # Een gedecodeerde minuut stereo kost ongeveer 22 MB werkgeheugen; met een
@@ -153,7 +158,14 @@ def main():
         json.dump(manifest, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    print(f"{len(out)} geluiden in data/sounds.json ({added} nieuw)")
+    with open(MANIFEST_JS, "w") as f:
+        f.write("/* Automatisch gemaakt door tools/sync_manifest.py - niet met de hand\n"
+                "   aanpassen. Pas data/sounds.json aan en draai het script opnieuw. */\n")
+        f.write("window.SOUNDS = ")
+        json.dump(manifest, f, indent=2, ensure_ascii=False)
+        f.write(";\n")
+
+    print(f"{len(out)} geluiden in data/sounds.json en js/manifest.js ({added} nieuw)")
     for e in out:
         print(f"  {e['label']:26s} {e['icon']:10s} {e['color']}  {e.get('gainDb', 0):+.2f} dB")
 

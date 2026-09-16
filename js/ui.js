@@ -896,6 +896,21 @@
       body.appendChild(field);
 
       function toon(st) {
+        var stuk = (E.failed || []).filter(function (id) { return self.byId[id]; });
+        if (stuk.length) {
+          var namen = stuk.map(function (id) { return self.get(id).label; }).join(', ');
+          line.textContent = stuk.length + ' GELUID' + (stuk.length > 1 ? 'EN' : '') +
+            ' NIET GELADEN';
+          bar.firstChild.style.width = '100%';
+          bar.firstChild.style.background = '#ff2b4a';
+          box.classList.remove('is-klaar');
+          btn.disabled = false;
+          btn.textContent = 'OPNIEUW OPHALEN';
+          var waar = box.querySelector('.offline-stuk');
+          if (!waar) { waar = el('p', 'hint offline-stuk'); box.appendChild(waar); }
+          waar.textContent = namen + ' — tik op opnieuw ophalen, of herlaad de pagina.';
+          return;
+        }
         var klaar = st.have >= st.total;
         box.classList.toggle('is-klaar', klaar);
         bar.firstChild.style.width = (st.total ? st.have / st.total * 100 : 0) + '%';

@@ -54,10 +54,20 @@
     limiter: null,
     duckDb: 12,         // hoeveel het oudere geluid zakt; 0 zet ducken uit
     onprogress: null,
+    failed: [],         // geluiden die niet binnenkwamen of niet te decoderen waren
+
+    /** Waar de audio vandaan komt. In het noodpakket zit alles ingebakken
+        in de pagina zelf, dan is er helemaal geen bestand meer nodig. */
+    srcFor: function (d, base) {
+      var ingebakken = global.AUDIO_DATA && global.AUDIO_DATA[d.id];
+      if (ingebakken) return ingebakken;
+      return (base || this.base || 'audio/') + d.file + (d.hash ? '?v=' + d.hash : '');
+    },
 
     /* ---- stap 1: bytes binnenhalen (mag vóór de eerste tik) ---- */
     prefetch: function (defs, base) {
       var self = this;
+      this.failed = [];
       this.defs = {};
       defs.forEach(function (d) { self.defs[d.id] = d; });
 
@@ -65,7 +75,7 @@
       var haal = defs.filter(function (d) { return !d.stream; });
       var total = haal.length || 1, done = 0;
       return Promise.all(haal.map(function (d) {
-        var url = base + d.file + (d.hash ? '?v=' + d.hash : '');
+        var url = self.srcFor(d, base);
         return fetch(url, { cache: 'force-cache' })
           .then(function (r) {
             if (!r.ok) throw new Error(r.status + ' ' + d.file);
@@ -78,6 +88,7 @@
           })
           .catch(function (err) {
             console.error('Ophalen mislukt:', d.file, err);
+            if (self.failed.indexOf(d.id) < 0) self.failed.push(d.id);
             done++;
             if (self.onprogress) self.onprogress(done / total * 0.65, d.label);
           });
@@ -117,6 +128,8 @@
         return Promise.all(ids.map(function (id) {
           return self.decode(self.raw[id]).then(function (buf) {
             self.buffers[id] = buf;
+            var k = self.failed.indexOf(id);
+            if (k >= 0) self.failed.splice(k, 1);   // tweede poging gelukt
             var g = self.ctx.createGain();
             g.gain.value = self.gainFor(id);
             self.gains[id] = g;
@@ -126,6 +139,7 @@
             if (self.onprogress) self.onprogress(0.65 + done / total * 0.35, self.defs[id].label);
           }).catch(function (err) {
             console.error('Decoderen mislukt:', id, err);
+            if (self.failed.indexOf(id) < 0) self.failed.push(id);
             done++;
             if (self.onprogress) self.onprogress(0.65 + done / total * 0.35, id);
           });
@@ -148,7 +162,7 @@
       if (this.streams[id]) return;
       var def = this.defs[id];
       var el = new Audio();
-      el.src = this.base + def.file + (def.hash ? '?v=' + def.hash : '');
+      el.src = this.srcFor(def);
       el.preload = 'auto';
       el.crossOrigin = 'anonymous';
       el.load();
@@ -495,10 +509,8 @@
     /** De urls zoals de app ze opvraagt, inclusief de inhoudshash. */
     audioUrls: function () {
       var self = this;
-      return Object.keys(this.defs).map(function (id) {
-        var d = self.defs[id];
-        return (self.base || 'audio/') + d.file + (d.hash ? '?v=' + d.hash : '');
-      });
+      return Object.keys(this.defs).map(function (id) { return self.srcFor(self.defs[id]); })
+        .filter(function (u) { return u.indexOf('data:') !== 0; });
     },
 
     /** Hoeveel van de geluiden staan al opgeslagen? */

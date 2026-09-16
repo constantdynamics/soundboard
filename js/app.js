@@ -4,7 +4,7 @@
 (function (global) {
   'use strict';
 
-  global.APP_VERSION = '2026.09.14-2';
+  global.APP_VERSION = '2026.09.16';
 
   var S = global.Settings, E = global.AudioEngine, UI = global.UI;
   var splash = document.getElementById('splash');
@@ -13,33 +13,53 @@
   var bar = document.getElementById('splash-bar');
   var note = document.getElementById('splash-note');
 
-  var defs = null, prefetching = null, started = false;
+  var prefetching = null, started = false;
+  var rescue = document.getElementById('splash-rescue');
 
   S.load();
 
   E.onprogress = function (p) { bar.style.width = Math.round(p * 100) + '%'; };
 
-  /* De bytes gaan meteen binnenhalen; het decoderen wacht op de eerste tik. */
-  fetch('data/sounds.json', { cache: 'no-cache' })
-    .then(function (r) {
-      if (!r.ok) throw new Error('sounds.json: ' + r.status);
-      return r.json();
-    })
-    .then(function (data) {
-      defs = data.sounds || [];
-      if (!defs.length) throw new Error('Geen geluiden in data/sounds.json');
-      note.textContent = defs.length + ' geluiden worden vooraf ingeladen, ' +
-        'zodat er tijdens je speech geen vertraging is.';
-      prefetching = E.prefetch(defs, 'audio/');
-      return prefetching;
-    })
-    .catch(function (err) {
-      console.error(err);
-      note.textContent = 'Inladen mislukt: ' + err.message;
+  /* Het manifest komt uit js/manifest.js, dat als gewoon script bij de pagina
+     hoort. Eerder werd het met fetch opgehaald, en als dat misging bleef de
+     hele soundboard staan - een enkele hapering in het netwerk maakte hem
+     onbruikbaar. Een script dat al geladen is, kan niet meer mislukken. */
+  var defs = (global.SOUNDS && global.SOUNDS.sounds) || null;
+
+  if (!defs || !defs.length) {
+    note.textContent = 'De lijst met geluiden kon niet worden gelezen. ' +
+      'Tik op ALLES OPNIEUW OPHALEN.';
+    btn.disabled = true;
+    rescue.hidden = false;
+  } else {
+    note.textContent = defs.length + ' geluiden worden vooraf ingeladen, ' +
+      'zodat er tijdens je speech geen vertraging is.';
+    prefetching = E.prefetch(defs, 'audio/');
+  }
+
+  /* Noodknop: alles opgeslagen weggooien en opnieuw beginnen. */
+  rescue.addEventListener('click', function () {
+    rescue.disabled = true;
+    rescue.textContent = 'OPSCHONEN…';
+    var klaar = [];
+    if (global.caches && caches.keys) {
+      klaar.push(caches.keys().then(function (ks) {
+        return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+      }));
+    }
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      klaar.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+        return Promise.all(rs.map(function (r) { return r.unregister(); }));
+      }));
+    }
+    Promise.all(klaar).catch(function () {}).then(function () {
+      global.location.reload();
     });
+  });
 
   btn.addEventListener('click', function () {
     if (started) return;
+    if (!defs || !defs.length) { rescue.hidden = false; return; }
     started = true;
 
     // Context openen binnen de tik zelf — iOS eist dat.
@@ -66,9 +86,12 @@
       .catch(function (err) {
         console.error(err);
         started = false;
-        btn.disabled = false;
+        prefetching = E.prefetch(defs, 'audio/');   // opnieuw proberen betekent
+        btn.disabled = false;                       // ook echt opnieuw ophalen
         btnText.textContent = 'OPNIEUW PROBEREN';
-        note.textContent = 'Er ging iets mis: ' + err.message;
+        note.textContent = 'Er ging iets mis: ' + (err && err.message ? err.message : err) +
+          '. Lukt het niet, tik dan op ALLES OPNIEUW OPHALEN.';
+        rescue.hidden = false;
       });
   });
 

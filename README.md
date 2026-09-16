@@ -73,6 +73,38 @@ plaats op. Alle gaten haal je in één keer weg via
 **Instellingen → Lege plekken → Lege plekken opruimen**. Ze werken het best met
 een vast aantal kolommen; op AUTO schuift het rooster mee met de schermbreedte.
 
+## Als het misgaat
+
+De soundboard is gebouwd om te blijven werken als er iets wegvalt:
+
+- **Het manifest is geen netwerkoproep.** De lijst met geluiden staat in
+  `js/manifest.js` en wordt als gewoon script geladen. Eerder werd hij met
+  fetch opgehaald, en één hapering maakte de hele soundboard onbruikbaar.
+- **Eén onbereikbaar geluid stopt de rest niet.** De andere knoppen werken
+  gewoon door, en bovenaan de instellingen staat welk geluid ontbreekt met
+  een knop om het alsnog op te halen.
+- **Op het startscherm staat een noodknop** die alle opgeslagen bestanden en
+  de service worker weggooit en opnieuw begint. Voor als er iets vastzit.
+- **Werkt offline**, mits je de soundboard op dat toestel al eens hebt
+  geopend. Zie *Offline klaarzetten* hierboven.
+
+### Noodpakket: één bestand, nul afhankelijkheden
+
+Voor als het écht niet mis mag gaan:
+
+```bash
+python3 tools/build_offline.py
+```
+
+Dat maakt één HTML-bestand van ongeveer 25 MB met de code, de stijl, het
+manifest en alle audio als ingebakken data-urls. Geen server, geen service
+worker, geen cache. Zet het op je telefoon en open het vanuit je bestanden:
+het werkt zonder enige verbinding, ook op een toestel dat de site nog nooit
+heeft gezien.
+
+Het enige verschil: zonder netwerk vallen de lettertypes terug op die van je
+toestel. Verder is alles hetzelfde.
+
 ## Updates
 
 De service worker haalt bestanden op met revalidatie, zodat een nieuwe versie
