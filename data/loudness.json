@@ -156,6 +156,17 @@
       "sampleRate": 48000,
       "channels": 2
     },
+    "elfstedentocht.mp3": {
+      "lufs": -17.11,
+      "momentaryMax": -13.55,
+      "peakDb": -3.86,
+      "workPeakDb": -7.23,
+      "gainDb": 1.11,
+      "peakAfterDb": -2.75,
+      "duration": 13.483,
+      "sampleRate": 44100,
+      "channels": 2
+    },
     "fortuna-con-sprezzatura-2.mp3": {
       "lufs": -13.13,
       "momentaryMax": -9.61,
@@ -198,6 +209,17 @@
       "peakAfterDb": -2.21,
       "duration": 159.613,
       "sampleRate": 48000,
+      "channels": 2
+    },
+    "pian-di-cascina-1.mp3": {
+      "lufs": -17.83,
+      "momentaryMax": -14.27,
+      "peakDb": -3.98,
+      "workPeakDb": -7.57,
+      "gainDb": 1.83,
+      "peakAfterDb": -2.15,
+      "duration": 10.645,
+      "sampleRate": 44100,
       "channels": 2
     },
     "pian-di-cascina.mp3": {

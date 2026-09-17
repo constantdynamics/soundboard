@@ -298,6 +298,10 @@ h1, h2, h3, p { margin: 0; }
   line-height: 1.15;
   color: #fff;
   text-shadow: 0 0 8px rgba(var(--c-rgb), .7), 0 1px 2px rgba(0, 0, 0, .9);
+  /* Een lang woord liever met een streepje afbreken dan er zomaar
+     middenin: ELFSTEDEN-TOCHT leest, ELFSTEDENTO CHT niet. */
+  -webkit-hyphens: auto;
+  hyphens: auto;
   overflow-wrap: anywhere;
 }
 .board.no-labels .pad-label { display: none; }

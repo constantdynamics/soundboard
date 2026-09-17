@@ -339,6 +339,8 @@ Gemeten waarden:
 | FORTUNA | 188.2s | -14.37 | -1.63 dB |
 | FORTUNA 2 | 181.2s | -13.13 | -2.87 dB |
 | PIAN DI CASCINA | 183.4s | -17.83 | +1.83 dB |
+| PIAN DI CASCINA 1 | 10.6s | -17.83 | +1.83 dB |
+| 11 STEDEN | 13.5s | -17.11 | +1.11 dB |
 
 ## Opbouw
 
