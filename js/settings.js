@@ -71,13 +71,43 @@
     { id: 18, name: 'RUIM' }, { id: 26, name: 'HEEL RUIM' }, { id: 36, name: 'MAXIMAAL' }
   ];
 
+  /* Knopgrootte is een vrij getal in pixels; deze punten zijn de presets
+     en tegelijk de ijkpunten waar het icoon- en labelformaat tussenin
+     wordt uitgerekend. Het label groeit bewust minder hard mee dan de
+     knop: tekst hoeft niet twee keer zo groot als de knop twee keer zo
+     groot wordt. */
   var SIZES = [
-    { id: 'xs', name: 'MINI',  pad: 74,  icon: 26, label: 8.5 },
-    { id: 's',  name: 'KLEIN', pad: 86,  icon: 32, label: 9.5 },
-    { id: 'm',  name: 'NORMAAL', pad: 104, icon: 38, label: 11 },
-    { id: 'l',  name: 'GROOT', pad: 136, icon: 50, label: 12.5 },
-    { id: 'xl', name: 'XXL',   pad: 170, icon: 62, label: 14 }
+    { id: 58,  name: 'MICRO',   icon: 21, label: 7 },
+    { id: 74,  name: 'MINI',    icon: 26, label: 8.5 },
+    { id: 86,  name: 'KLEIN',   icon: 32, label: 9.5 },
+    { id: 104, name: 'NORMAAL', icon: 38, label: 11 },
+    { id: 136, name: 'GROOT',   icon: 50, label: 12.5 },
+    { id: 170, name: 'XXL',     icon: 62, label: 14 }
   ];
+  var SIZE_MIN = 48, SIZE_MAX = 200;
+  var FONT_MIN = 0.5, FONT_MAX = 2;
+
+  /* Oude opslag bewaarde de knopgrootte als naam in plaats van als maat. */
+  var SIZE_NAMEN = { xs: 74, s: 86, m: 104, l: 136, xl: 170 };
+
+  /** Icoon- en labelformaat bij een willekeurige knopgrootte: recht
+      tussen de twee ijkpunten in waar de maat tussen valt. Op een preset
+      komt er exact uit wat in de tabel staat. */
+  function sizeFor(px) {
+    px = Math.max(SIZE_MIN, Math.min(SIZE_MAX, Number(px) || 104));
+    var a = SIZES[0], b = SIZES[SIZES.length - 1];
+    for (var i = 0; i < SIZES.length - 1; i++) {
+      if (px >= SIZES[i].id && px <= SIZES[i + 1].id) { a = SIZES[i]; b = SIZES[i + 1]; break; }
+      if (px < SIZES[0].id) { a = SIZES[0]; b = SIZES[1]; break; }
+      if (px > SIZES[SIZES.length - 1].id) { a = SIZES[SIZES.length - 2]; b = SIZES[SIZES.length - 1]; break; }
+    }
+    var f = b.id === a.id ? 0 : (px - a.id) / (b.id - a.id);
+    return {
+      pad: Math.round(px),
+      icon: Math.round(a.icon + (b.icon - a.icon) * f),
+      label: Math.round((a.label + (b.label - a.label) * f) * 10) / 10
+    };
+  }
 
   var COLUMNS = [
     { id: 'auto', name: 'AUTO' },
@@ -117,7 +147,7 @@
       border: 2,
       gap: 12,
       radius: 22,
-      size: 'm',
+      size: 104,
       columns: 'auto',
       masterVolume: 85,
       fade: 1.2,
@@ -133,6 +163,9 @@
 
   var Settings = {
     FONTS: FONTS, PALETTES: PALETTES, SIZES: SIZES, FILLS: FILLS,
+    SIZE_MIN: SIZE_MIN, SIZE_MAX: SIZE_MAX,
+    FONT_MIN: FONT_MIN, FONT_MAX: FONT_MAX,
+    sizeFor: sizeFor,
     BORDERS: BORDERS, GAPS: GAPS, RADII: RADII, DUCKS: DUCKS,
     COLUMNS: COLUMNS, FADES: FADES, TIMER_TARGETS: TIMER_TARGETS,
     data: defaults(),
@@ -170,7 +203,16 @@
         else if ((k === 'order' || k === 'archived' || k === 'clones') && Array.isArray(saved[k])) base[k] = saved[k];
         else if (typeof base[k] !== 'object') base[k] = saved[k];
       });
-      return base;
+      return this.normalize(base);
+    },
+
+    /** Zet oude of onmogelijke waarden recht. De knopgrootte was vroeger
+        een naam ('m'), nu een maat in pixels. */
+    normalize: function (d) {
+      if (typeof d.size === 'string') d.size = SIZE_NAMEN[d.size] || 104;
+      d.size = Math.max(SIZE_MIN, Math.min(SIZE_MAX, Math.round(Number(d.size) || 104)));
+      d.fontScale = Math.max(FONT_MIN, Math.min(FONT_MAX, Number(d.fontScale) || 1));
+      return d;
     },
 
     save: function () {

@@ -178,12 +178,33 @@ icoon van een nieuwe knop pas je daarna gewoon in de app zelf aan.
 | Randdikte | van geen rand tot 8 px |
 | Afronding | van blok tot cirkel |
 | Tussenruimte | 4 tot 36 px, geldt ook voor de marge langs de schermrand |
-| Knopgrootte | Mini tot XXL |
+| Knopgrootte | 48 tot 200 px, per pixel, met zes presets van Micro tot XXL |
 | Kolommen | Auto of een vast aantal van 1 tot 6 |
-| Lettertype | 8 lettertypes, met een aparte schuif voor de tekstgrootte |
+| Lettertype | 8 lettertypes |
+| Tekstgrootte | 50 tot 200 %, per procent, met vijf presets |
 
 Een palet zet de kleur van alle knoppen opnieuw. Wil je één knop een eigen
 kleur geven, zet dan het slotje open en tik die knop aan.
+
+### Precies instellen
+
+Knopgrootte en tekstgrootte hebben allebei een schuif met een **−** en een
+**+** ernaast. De schuif is voor grof werk, de knopjes voor de laatste paar
+stappen: op een aanraakscherm sleep je nooit precies op een pixel.
+
+De maat in pixels is de maat die je krijgt. Het raster maakt kolommen die
+precies zo breed zijn als je hebt ingesteld en zet ze gecentreerd; wat
+overblijft valt als gelijke marge aan weerskanten. Eerder rekten de knoppen
+uit tot de rand, en dan bepaalde de breedte van je scherm de maat: de schuif
+deed dan pas iets op het moment dat er een kolom bij of af sprong. Alleen als
+je een vast aantal kolommen kiest dat niet past, krimpen de knoppen alsnog —
+zes van 60 px passen nu eenmaal niet op 390 px scherm.
+
+Onder de 48 px kan niet: daaronder is een knop te klein om met een duim te
+raken. Icoon en label groeien mee met de knop, waarbij het label bewust wat
+achterblijft — tekst hoeft niet twee keer zo groot als de knop twee keer zo
+groot wordt. De tekstgrootte staat daar los van, dus kleine letters onder
+grote knoppen kan ook.
 
 ## Korte geluiden en lange nummers
 

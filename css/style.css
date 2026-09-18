@@ -26,7 +26,6 @@
   --icon-size: 40px;
   --label-size: 11px;
   --gap: 12px;
-  --pad-scale: 1;
   --pad-border: 2px;
   --pad-radius: 22px;
   --edge: 14px;
@@ -172,19 +171,26 @@ h1, h2, h3, p { margin: 0; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 
 /* ---------- knoppenraster ---------------------------------------- */
+/* De kolommen zijn precies zo breed als de ingestelde knopgrootte, niet
+   uitgerekt tot de rand. Anders bepaalt de breedte van het scherm de maat
+   en doet de schuif pas iets als er een kolom bij of af springt - dan is
+   er van precies instellen geen sprake. Het raster staat gecentreerd, dus
+   wat overblijft valt als gelijke marge aan weerskanten. */
 .board {
+  --pad-max: var(--pad-size);
   position: relative; z-index: 1; flex: 1;
   display: grid; gap: var(--gap);
-  grid-template-columns: repeat(auto-fill, minmax(calc(var(--pad-size) * var(--pad-scale)), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(0, var(--pad-max)));
+  justify-content: center;
   align-content: start;
   padding: 6px calc(var(--safe-r) + var(--edge)) calc(var(--dock-h) + var(--safe-b) + 26px) calc(var(--safe-l) + var(--edge));
 }
-.board.cols-1 { grid-template-columns: 1fr; }
-.board.cols-2 { grid-template-columns: repeat(2, 1fr); }
-.board.cols-3 { grid-template-columns: repeat(3, 1fr); }
-.board.cols-4 { grid-template-columns: repeat(4, 1fr); }
-.board.cols-5 { grid-template-columns: repeat(5, 1fr); }
-.board.cols-6 { grid-template-columns: repeat(6, 1fr); }
+.board.cols-1 { grid-template-columns: minmax(0, var(--pad-max)); }
+.board.cols-2 { grid-template-columns: repeat(2, minmax(0, var(--pad-max))); }
+.board.cols-3 { grid-template-columns: repeat(3, minmax(0, var(--pad-max))); }
+.board.cols-4 { grid-template-columns: repeat(4, minmax(0, var(--pad-max))); }
+.board.cols-5 { grid-template-columns: repeat(5, minmax(0, var(--pad-max))); }
+.board.cols-6 { grid-template-columns: repeat(6, minmax(0, var(--pad-max))); }
 
 .board-empty { text-align: center; color: var(--ink-dim); padding: 30px; font-size: 13px; }
 
@@ -721,6 +727,18 @@ body.has-np .board { padding-bottom: calc(var(--dock-h) + var(--safe-b) + 96px);
   box-shadow: 0 0 14px rgba(var(--neon-b-rgb), .32); }
 .btn--danger { border-color: #ff2b4a; color: #ff8fa0; }
 
+/* Schuif met een stapknop aan weerszijden. De knopjes zijn er voor de
+   laatste paar stappen: op een aanraakscherm sleep je nooit precies. */
+.stepper { display: flex; align-items: center; gap: 10px; }
+.stepper .stepper-range { flex: 1; min-width: 0; }
+.btn--step {
+  flex: none; width: 46px; height: 40px; padding: 0;
+  display: grid; place-items: center;
+  font-size: 20px; line-height: 1; letter-spacing: 0;
+  border-color: rgba(var(--neon-b-rgb), .55);
+}
+.btn--step:active { background: rgba(var(--neon-b-rgb), .2); }
+
 .offline-box {
   padding: 12px; border-radius: 12px;
   border: 1.5px solid rgba(255, 255, 255, .18);
@@ -864,7 +882,7 @@ body.has-np .board { padding-bottom: calc(var(--dock-h) + var(--safe-b) + 96px);
 
 /* ---------- groter scherm ---------------------------------------- */
 @media (min-width: 720px) {
-  :root { --dock-h: 78px; --pad-scale: 1.35; }
+  :root { --dock-h: 78px; }
   .topbar { padding-top: calc(var(--safe-t) + 16px); }
   .brand-sm { font-size: 10px; }
   .timer-time { font-size: 22px; }

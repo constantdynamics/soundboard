@@ -165,15 +165,17 @@
     applyTheme: function () {
       var d = S.data, root = document.documentElement.style;
       var font = S.find(S.FONTS, d.font);
-      var size = S.find(S.SIZES, d.size);
+      var size = S.sizeFor(d.size);
       var pal = S.find(S.PALETTES, d.palette);
 
       root.setProperty('--font-stack', font.stack);
       root.setProperty('--font-weight', font.weight);
       root.setProperty('--font-spacing', font.spacing);
       root.setProperty('--font-scale', d.fontScale);
-      root.setProperty('--pad-size', Math.round(size.pad * (0.85 + d.fontScale * 0.15)) + 'px');
-      root.setProperty('--icon-size', Math.round(size.icon) + 'px');
+      // Knopgrootte staat los van tekstgrootte: wie de tekst kleiner zet
+      // wil niet dat de knoppen ongevraagd meekrimpen.
+      root.setProperty('--pad-size', size.pad + 'px');
+      root.setProperty('--icon-size', size.icon + 'px');
       root.setProperty('--label-size', size.label + 'px');
       root.setProperty('--pad-border', d.border + 'px');
       root.setProperty('--pad-radius', (d.radius >= 999 ? 50 : d.radius) + (d.radius >= 999 ? '%' : 'px'));
@@ -675,6 +677,63 @@
       return row;
     },
 
+    /** Schuif met een uitlezing, twee stapknoppen en een rij presets.
+        De schuif is voor grof werk, de knopjes voor de laatste paar
+        stappen - op een telefoon sleep je nooit precies op een pixel. */
+    sliderField: function (opts) {
+      var self = this;
+      var box = el('div');
+      var rij = el('div', 'stepper');
+      var min = el('button', 'btn btn--step', '&minus;');
+      var plus = el('button', 'btn btn--step', '+');
+      var schuif = el('input', 'stepper-range');
+      min.type = plus.type = 'button';
+      min.setAttribute('aria-label', 'Kleiner');
+      plus.setAttribute('aria-label', 'Groter');
+      schuif.type = 'range';
+      schuif.min = opts.min; schuif.max = opts.max; schuif.step = opts.step;
+      schuif.value = opts.value;
+      schuif.setAttribute('aria-label', opts.label);
+      rij.appendChild(min); rij.appendChild(schuif); rij.appendChild(plus);
+      box.appendChild(rij);
+
+      var veld = this.field(opts.label, opts.format(opts.value), box);
+      var lees = veld.querySelector('.field-value');
+
+      function zet(v, bewaar) {
+        v = Math.max(opts.min, Math.min(opts.max, Math.round(v / opts.step) * opts.step));
+        v = Math.round(v * 1000) / 1000;
+        schuif.value = v;
+        lees.textContent = opts.format(v);
+        opts.onInput(v);
+        if (bewaar) {
+          S.save();
+          if (opts.presets) verfPresets(v);
+        }
+      }
+      var presetRij = null;
+      function verfPresets(v) {
+        if (!presetRij) return;
+        var knoppen = presetRij.querySelectorAll('.chip');
+        opts.presets.forEach(function (it, i) {
+          knoppen[i].setAttribute('aria-pressed', String(Number(it.id) === Number(v)));
+        });
+      }
+
+      schuif.addEventListener('input', function () { zet(parseFloat(this.value), false); });
+      schuif.addEventListener('change', function () { zet(parseFloat(this.value), true); });
+      min.addEventListener('click', function () { zet(parseFloat(schuif.value) - opts.step, true); });
+      plus.addEventListener('click', function () { zet(parseFloat(schuif.value) + opts.step, true); });
+
+      if (opts.presets) {
+        presetRij = this.chipRow(opts.presets, opts.value, function (it) { zet(Number(it.id), true); });
+        presetRij.style.marginTop = '8px';
+        box.appendChild(presetRij);
+      }
+      if (opts.hint) box.appendChild(el('p', 'hint', opts.hint));
+      return veld;
+    },
+
     field: function (label, valueText, control) {
       var f = el('div', 'field');
       var head = el('div', 'field-label',
@@ -702,24 +761,16 @@
       })));
 
       /* tekstgrootte */
-      var scale = el('input');
-      scale.type = 'range'; scale.min = '0.7'; scale.max = '1.8'; scale.step = '0.05';
-      scale.value = d.fontScale;
-      scale.addEventListener('input', function () {
-        d.fontScale = parseFloat(this.value);
-        self.applyTheme();
-        body.querySelector('[data-v="scale"]').textContent = Math.round(d.fontScale * 100) + '%';
-      });
-      scale.addEventListener('change', function () { S.save(); });
-      var scaleField = this.field('TEKSTGROOTTE', Math.round(d.fontScale * 100) + '%', scale);
-      scaleField.querySelector('.field-value').dataset.v = 'scale';
-      var presetRow = this.chipRow(
-        [{ id: 0.8, name: 'S' }, { id: 1, name: 'M' }, { id: 1.25, name: 'L' }, { id: 1.5, name: 'XL' }],
-        d.fontScale,
-        function (it) { S.set('fontScale', it.id); self.applyTheme(); self.renderSettings(); });
-      presetRow.style.marginTop = '8px';
-      scaleField.appendChild(presetRow);
-      body.appendChild(scaleField);
+      body.appendChild(this.sliderField({
+        label: 'TEKSTGROOTTE',
+        min: S.FONT_MIN, max: S.FONT_MAX, step: 0.01, value: d.fontScale,
+        format: function (v) { return Math.round(v * 100) + '%'; },
+        onInput: function (v) { d.fontScale = v; self.applyTheme(); },
+        presets: [{ id: 0.65, name: 'XS' }, { id: 0.8, name: 'S' }, { id: 1, name: 'M' },
+                  { id: 1.25, name: 'L' }, { id: 1.5, name: 'XL' }],
+        hint: 'Stapjes van 1%. De tekst staat los van de knopgrootte, dus je ' +
+              'kunt kleine letters onder grote knoppen zetten en andersom.'
+      }));
 
       /* kleurenpalet */
       body.appendChild(this.field('KLEURENPALET', '', this.chipRow(S.PALETTES, d.palette, function (it) {
@@ -771,9 +822,16 @@
         'van het scherm.'));
 
       /* knopgrootte */
-      body.appendChild(this.field('KNOPGROOTTE', '', this.chipRow(S.SIZES, d.size, function (it) {
-        S.set('size', it.id); self.applyTheme();  self.renderSettings();
-      })));
+      body.appendChild(this.sliderField({
+        label: 'KNOPGROOTTE',
+        min: S.SIZE_MIN, max: S.SIZE_MAX, step: 1, value: d.size,
+        format: function (v) { return Math.round(v) + ' PX'; },
+        onInput: function (v) { d.size = Math.round(v); self.applyTheme(); },
+        presets: S.SIZES,
+        hint: 'Stapjes van één pixel. Icoon en tekst onder de knop groeien mee. ' +
+              'Onder de 48 gaat het niet: dan is de knop te klein om met een ' +
+              'duim te raken.'
+      }));
 
       /* kolommen */
       body.appendChild(this.field('KOLOMMEN', '', this.chipRow(S.COLUMNS, d.columns, function (it) {
