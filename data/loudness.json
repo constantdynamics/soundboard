@@ -322,12 +322,12 @@
       "channels": 1
     },
     "whatsapp-video.mp4": {
-      "lufs": -32.43,
-      "momentaryMax": -25.9,
-      "peakDb": -12.35,
-      "workPeakDb": -17.02,
-      "gainDb": 16.43,
-      "peakAfterDb": 4.08,
+      "lufs": -16.16,
+      "momentaryMax": -10.19,
+      "peakDb": -1.0,
+      "workPeakDb": -2.21,
+      "gainDb": 0.16,
+      "peakAfterDb": -0.84,
       "duration": 29.077,
       "sampleRate": 48000,
       "channels": 2

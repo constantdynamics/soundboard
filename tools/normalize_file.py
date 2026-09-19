@@ -62,8 +62,13 @@ def main():
           f"bereik {m['input_lra']} LU")
 
     ext = os.path.splitext(src)[1].lower()
+    film = ext in (".mp4", ".m4v", ".mov", ".webm")
     codec = ["-c:a", "libmp3lame", "-b:a", args.bitrate] if ext == ".mp3" \
         else ["-c:a", "aac", "-b:a", args.bitrate]
+    # Bij een video blijft het beeld ongemoeid: alleen het geluidsspoor gaat
+    # door loudnorm, de videostroom wordt letterlijk overgeschreven.
+    beeld = ["-c:v", "copy", "-map", "0:v:0", "-map", "0:a:0",
+             "-movflags", "+faststart"] if film else []
 
     with tempfile.TemporaryDirectory() as tmp:
         dst = os.path.join(tmp, "uit" + ext)
@@ -72,7 +77,7 @@ def main():
                        f"measured_I={m['input_i']}:measured_TP={m['input_tp']}:"
                        f"measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:"
                        f"offset={m['target_offset']}:print_format=summary"),
-               "-ar", "48000"] + codec + [dst]
+               "-ar", "48000"] + beeld + codec + [dst]
         subprocess.run(cmd, check=True)
         shutil.move(dst, src)
 

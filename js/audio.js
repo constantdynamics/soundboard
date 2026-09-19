@@ -307,8 +307,14 @@
     },
 
     setMaster: function (percent) {
-      if (!this.masterGain) return;
       var v = Math.max(0, Math.min(100, percent)) / 100;
+      this.masterVolume = percent;      // ook voor een video die los staat
+      var self = this;
+      Object.keys(this.videos).forEach(function (id) {
+        var vd = self.videos[id];
+        if (vd && vd.los) { try { vd.el.volume = v; } catch (e) {} }
+      });
+      if (!this.masterGain) return;
       this.masterGain.gain.setTargetAtTime(v * v, this.ctx.currentTime, 0.02);
     },
 
@@ -395,6 +401,12 @@
         var vd = this.videos[id];
         if (!vd) return;
         var zelf = this;
+        if (vd.los) {
+          try { vd.el.pause(); } catch (e) {}
+          this.voices[id] = [];
+          this.applyDucking();
+          return;
+        }
         try {
           vd.gain.gain.cancelScheduledValues(t);
           vd.gain.gain.setValueAtTime(Math.max(vd.gain.gain.value, 0.0001), t);
@@ -458,43 +470,57 @@
         in de pagina onderbreekt het afspelen. */
     openVideo: function (id, el) {
       if (this.videos[id]) return this.videos[id];
-      this.openContext();
+      // Lukt het aanhaken niet, dan speelt de video gewoon met zijn eigen
+      // geluid door. Dat mag nooit het beeld in de weg staan: Safari kan
+      // hier weigeren, en dan is stilte beter dan een zwart scherm.
+      try {
+        this.openContext();
+        var source = this.ctx.createMediaElementSource(el);
+        var duck = this.ctx.createGain();
+        duck.gain.value = 1;
+        var vg = this.ctx.createGain();
+        vg.gain.value = 1;
+        source.connect(duck);
+        duck.connect(vg);
 
-      var source = this.ctx.createMediaElementSource(el);
-      var duck = this.ctx.createGain();
-      duck.gain.value = 1;
-      var vg = this.ctx.createGain();
-      vg.gain.value = 1;
-      source.connect(duck);
-      duck.connect(vg);
+        var g = this.ctx.createGain();
+        g.gain.value = this.gainFor(id);
+        g.connect(this.masterGain);
+        vg.connect(g);
+        this.gains[id] = g;
+        this.voices[id] = [];
 
-      var g = this.ctx.createGain();
-      g.gain.value = this.gainFor(id);
-      g.connect(this.masterGain);
-      vg.connect(g);
-      this.gains[id] = g;
-      this.voices[id] = [];
-
-      this.videos[id] = { el: el, source: source, gain: vg, duck: duck };
+        this.videos[id] = { el: el, source: source, gain: vg, duck: duck };
+      } catch (e) {
+        console.warn('Video niet aan de geluidsketen gekregen:', e);
+        this.videos[id] = { el: el, source: null, gain: null, duck: null, los: true };
+        this.voices[id] = [];
+      }
       return this.videos[id];
     },
 
     playVideo: function (id, vanaf) {
       var v = this.videos[id];
       if (!v) return null;
-      this.openContext();
-      if (this.ctx.state === 'suspended') this.ctx.resume();
-      var t = this.ctx.currentTime;
-      v.gain.gain.cancelScheduledValues(t);
-      v.gain.gain.setValueAtTime(1, t);
-      v.duck.gain.cancelScheduledValues(t);
-      v.duck.gain.setValueAtTime(1, t);
+      var t = 0;
+      if (!v.los && this.ctx) {
+        try {
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+          t = this.ctx.currentTime;
+          v.gain.gain.cancelScheduledValues(t);
+          v.gain.gain.setValueAtTime(1, t);
+          v.duck.gain.cancelScheduledValues(t);
+          v.duck.gain.setValueAtTime(1, t);
+        } catch (e) { console.warn('Videogain:', e); }
+      } else {
+        // los van de keten: het mastervolume via het element zelf
+        try { v.el.volume = Math.max(0, Math.min(1, (this.masterVolume == null ? 100 : this.masterVolume) / 100)); }
+        catch (e) {}
+      }
       if (vanaf != null) { try { v.el.currentTime = vanaf; } catch (e) {} }
       var voice = { video: true, startedAt: t, fading: false, duck: v.duck, duckTarget: 1 };
       this.voices[id] = [voice];
-      var p = v.el.play();
-      if (p && p.catch) p.catch(function () {});
-      return voice;
+      return v.el.play();          // de belofte gaat terug naar de aanroeper
     },
 
     pauseVideo: function (id) {
@@ -515,11 +541,13 @@
     /** Noteert wat er speelt en waar het is, en legt het daarna stil. Wordt
         gebruikt als een video het podium overneemt. */
     snapshot: function () {
-      var self = this, uit = [];
+      var self = this, uit = [], weg = [];
       if (!this.ctx) return uit;
       var t = this.ctx.currentTime;
       Object.keys(this.voices).forEach(function (id) {
-        if (self.videos[id]) return;                 // een video pauzeert zichzelf
+        // Een video slaan we over, ook bij het uitfaden: die speelt juist,
+        // of gaat zo beginnen. fadeAll() zou hem meteen weer stilleggen.
+        if (self.videos[id]) return;
         (self.voices[id] || []).forEach(function (v) {
           if (v.fading) return;
           var sp = self.span(id), pos;
@@ -530,9 +558,10 @@
             pos = sp.start + (v.offset || 0) + (t - v.startedAt);
           }
           if (pos < sp.end - 0.2) uit.push({ id: id, pos: pos });
+          weg.push({ v: v, id: id });
         });
       });
-      this.fadeAll(0.25);
+      weg.forEach(function (x) { self.fadeVoice(x.v, 0.25, x.id); });
       return uit;
     },
 

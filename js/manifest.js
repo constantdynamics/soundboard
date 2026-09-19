@@ -7322,9 +7322,9 @@ window.SOUNDS = {
       "icon": "play",
       "color": "#ff6a00",
       "kind": "video",
-      "gainDb": 16.43,
+      "gainDb": 0.16,
       "duration": 29.077,
-      "hash": "19c958cd52",
+      "hash": "e09d3f1247",
       "w": 1108,
       "h": 834,
       "stream": true

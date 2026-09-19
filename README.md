@@ -233,9 +233,24 @@ paar seconden spelen vallen de knoppen weg; raak het scherm aan en ze zijn
 terug. Aan het eind sluit de speler vanzelf. De speech-timer loopt gewoon
 door.
 
-**Het geluid gaat door dezelfde keten** als de rest: de gemeten correctie,
-het mastervolume en de limiter. Een video klinkt dus niet ineens harder of
-zachter dan een geluidje. De video zit ook altijd in het noodpakket.
+**Het geluid gaat door dezelfde keten** als de rest: het mastervolume en de
+limiter. Anders dan bij audio wordt de luidheidscorrectie bij een video wél
+in het bestand zelf gebakken (`normalize_file.py` laat het beeld ongemoeid en
+stuurt alleen het geluidsspoor door loudnorm). Zo klinkt hij ook goed als het
+aanhaken aan de keten mislukt — en dat kan: Safari weigert
+`createMediaElementSource` op een `<video>` wel eens. Lukt het niet, dan
+speelt de video gewoon door met zijn eigen geluid en volgt het mastervolume
+via `el.volume`. De video zit ook altijd in het noodpakket.
+
+**Niets faalt stil.** De laag gaat altijd eerst open en het afspelen begint
+binnen dezelfde tik; al het andere — de geluidsketen, het onthouden van wat
+er speelde, de draaiing — staat in een try/catch erachter. Weigert de
+telefoon te starten, dan staat de reden in beeld met de uitnodiging om het
+scherm aan te tikken. Is hij nog aan het laden, dan zie je drie stipjes in
+plaats van zwart. **Instellingen &rarr; Versie** toont onderaan een
+diagnoseblok: versie, aantal knoppen, of de pagina de speler heeft, de staat
+van de audiocontext, de service worker, en per video het element, het
+formaat, de foutcode en of het geluid via de keten loopt.
 
 Aanleveren gaat zoals bij audio: zet het bestand in `video/` en draai
 `analyze_loudness.py` en `sync_manifest.py`. Het manifest krijgt dan
@@ -404,7 +419,7 @@ Gemeten waarden:
 | PIAN DI CASCINA | 183.4s | -17.83 | +1.83 dB |
 | PIAN DI CASCINA 1 | 10.6s | -17.83 | +1.83 dB |
 | 11 STEDEN | 13.5s | -17.11 | +1.11 dB |
-| REAL LIFE (video) | 29.1s | -32.43 | +16.43 dB |
+| REAL LIFE (video) | 29.1s | -16.16 (na loudnorm in het bestand) | +0.16 dB |
 
 ## Opbouw
 

@@ -968,6 +968,30 @@ body.has-np .board { padding-bottom: calc(var(--dock-h) + var(--safe-b) + 96px);
 .vid-close svg { width: 22px; height: 22px; }
 .vid-close:active { transform: scale(.94); }
 
+/* drie stipjes terwijl hij nog aan het inladen is */
+.vid-bezig {
+  position: absolute; z-index: 3; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  display: none; gap: 8px;
+}
+.vid.is-bezig .vid-bezig { display: flex; }
+.vid-bezig i {
+  width: 10px; height: 10px; border-radius: 50%; background: #fff;
+  animation: vidpuls 1s ease-in-out infinite;
+}
+.vid-bezig i:nth-child(2) { animation-delay: .15s; }
+.vid-bezig i:nth-child(3) { animation-delay: .3s; }
+@keyframes vidpuls { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+
+.vid-melding {
+  position: absolute; z-index: 3;
+  left: calc(var(--safe-l) + 14px); right: calc(var(--safe-r) + 14px);
+  top: 50%; transform: translateY(-50%);
+  margin: 0; padding: 14px 16px; border-radius: 14px;
+  border: 1.5px solid #ff2b4a; background: rgba(20, 0, 8, .9);
+  color: #ffd2da; font-size: 12px; line-height: 1.6; text-align: center;
+}
+
 .vid-bar {
   position: absolute; z-index: 2;
   left: calc(var(--safe-l) + 14px); right: calc(var(--safe-r) + 14px);
@@ -1010,4 +1034,14 @@ body.has-np .board { padding-bottom: calc(var(--dock-h) + var(--safe-b) + 96px);
   width: 0; height: 0; border-radius: 0 var(--pad-radius) 0 0;
   border-top: 14px solid rgba(255, 255, 255, .5);
   border-left: 14px solid transparent;
+}
+
+/* diagnoseregels in de instellingen: klein, uitlijnbaar, te selecteren */
+.diag {
+  margin: 10px 0 0; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: rgba(0, 0, 0, .35);
+  color: var(--ink-dim); font-size: 10px; line-height: 1.6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap; word-break: break-word;
+  -webkit-user-select: text; user-select: text;
 }

@@ -348,11 +348,28 @@
         el.playsInline = true;
         el.setAttribute('playsinline', '');
         el.setAttribute('webkit-playsinline', '');
-        el.crossOrigin = 'anonymous';
+        // bewust geen crossOrigin: het bestand komt van dezelfde site (of zit
+        // als data-url in de pagina), en die vlag maakt er een cors-verzoek
+        // van dat op sommige browsers juist misgaat
         el.hidden = true;
         stage.appendChild(el);
         self.vidEls[d.id] = el;
         el.addEventListener('ended', function () { self.closeVideo(); });
+        el.addEventListener('error', function () {
+          if (self.vidNu !== d.id) return;
+          var f = el.error || {};
+          self.vidMelding('Deze telefoon krijgt de video niet open (fout ' +
+            (f.code || '?') + '). Zie Instellingen \u2192 Versie voor de details.');
+        });
+        // laat zien dat hij aan het laden is in plaats van zwart te blijven
+        ['waiting', 'stalled', 'loadstart'].forEach(function (naam) {
+          el.addEventListener(naam, function () {
+            if (self.vidNu === d.id && el.readyState < 3) self.vidBezig(true);
+          });
+        });
+        ['playing', 'canplay', 'error'].forEach(function (naam) {
+          el.addEventListener(naam, function () { self.vidBezig(false); });
+        });
       });
       this.bindVideo();
     },
@@ -369,8 +386,14 @@
       tik.addEventListener('click', function () {
         var el = self.vidNu && self.vidEls[self.vidNu];
         if (!el) return;
-        if (el.paused) { E.playVideo(self.vidNu); self.vidRust(); }
-        else { E.pauseVideo(self.vidNu); }
+        if (el.paused) {
+          self.vidMelding('');
+          var p = E.playVideo(self.vidNu);
+          if (p && p.catch) p.catch(function (e) {
+            self.vidMelding('Nog steeds niet: ' + (e && e.name ? e.name : e));
+          });
+          self.vidRust();
+        } else { E.pauseVideo(self.vidNu); }
         self.vidVerf();
         self.vidToon();
       });
@@ -415,24 +438,47 @@
       $('vid-ask').hidden = false;
     },
 
+    /** Volgorde is hier het hele punt. Eerst gaat de laag open, dan begint
+        het afspelen - beide nog binnen de tik, want anders weigert iOS. Al
+        het andere (de geluidsketen, het onthouden van wat er speelde, de
+        draaiing) kan misgaan zonder dat je een zwart scherm of, erger, een
+        knop krijgt waar niets van gebeurt. Wat er misgaat komt in beeld. */
     openVideo: function (id) {
       var self = this;
       var el = this.vidEls && this.vidEls[id];
-      if (!el) return;
-
-      E.openContext();
-      E.openVideo(id, el);
-      this.vidWacht = E.snapshot();          // wat er speelde, en waar het was
-      this.vidNu = id;
-
-      Object.keys(this.vidEls).forEach(function (k) { self.vidEls[k].hidden = (k !== id); });
       var vid = $('vid');
+      if (!vid) { global.alert('Deze versie van de pagina heeft nog geen videospeler. Ververs de pagina.'); return; }
+      if (!el) { this.vidFout('Geen videobestand bij deze knop gevonden.'); return; }
+
+      // 1. de laag open, zodat er altijd iets gebeurt
+      this.vidNu = id;
+      this.vidMelding('');
+      Object.keys(this.vidEls).forEach(function (k) { self.vidEls[k].hidden = (k !== id); });
       vid.hidden = false;
       vid.setAttribute('aria-hidden', 'false');
-      this.vidDraai();
+      vid.classList.remove('is-rustig', 'is-gepauzeerd');
+
+      // 2. afspelen, nog steeds binnen de tik
       try { el.currentTime = 0; } catch (e) {}
-      E.playVideo(id, 0);
-      this.vidVerf();
+      var start;
+      try {
+        E.openVideo(id, el);
+        start = E.playVideo(id, 0);
+      } catch (e) {
+        start = null;
+        this.vidMelding('Starten mislukt: ' + (e && e.message ? e.message : e));
+      }
+      if (start && start.then) {
+        start.catch(function (e) {
+          self.vidMelding('De telefoon wilde de video niet starten: ' +
+            (e && e.name ? e.name : e) + '. Tik op het scherm om het opnieuw te proberen.');
+        });
+      }
+
+      // 3. de rest mag rustig stukgaan zonder dat je het beeld kwijtraakt
+      try { this.vidWacht = E.snapshot(); } catch (e) { this.vidWacht = null; }
+      try { this.vidDraai(); } catch (e) {}
+      try { this.vidVerf(); } catch (e) {}
       this.vidToon();
       this.vidLoop();
       this.wake();
@@ -445,6 +491,30 @@
           if (o && o.lock && self.vidLiggend()) o.lock('landscape').catch(function () {});
         }).catch(function () {});
       }
+    },
+
+    vidBezig: function (aan) {
+      var vid = $('vid');
+      if (vid) vid.classList.toggle('is-bezig', !!aan);
+      if (aan) this.vidMelding('');
+    },
+
+    /** Zet een regel in beeld over de video heen; leeg maakt hem weg. */
+    vidMelding: function (tekst) {
+      var box = $('vid-melding');
+      if (!box) return;
+      box.textContent = tekst || '';
+      box.hidden = !tekst;
+      if (tekst) {
+        $('vid').classList.remove('is-rustig');
+        if (this.vidRustTimer) clearTimeout(this.vidRustTimer);
+      }
+    },
+
+    /** Als de speler zelf niet open kan: zeg het gewoon. */
+    vidFout: function (tekst) {
+      console.error('Video:', tekst);
+      global.alert(tekst);
     },
 
     closeVideo: function () {
@@ -463,7 +533,8 @@
 
       vid.hidden = true;
       vid.setAttribute('aria-hidden', 'true');
-      vid.classList.remove('is-rustig', 'is-gepauzeerd', 'is-gedraaid');
+      vid.classList.remove('is-rustig', 'is-gepauzeerd', 'is-gedraaid', 'is-bezig');
+      this.vidMelding('');
       if (this.vidNu && this.vidEls[this.vidNu]) this.vidEls[this.vidNu].hidden = true;
       this.vidNu = null;
 
@@ -1165,11 +1236,40 @@
       body.lastChild.appendChild(el('p', 'hint',
         'Gooit de opgeslagen bestanden weg en laadt de soundboard opnieuw. ' +
         'Je instellingen blijven staan. De audio wordt daarna opnieuw opgehaald.'));
+      body.lastChild.appendChild(this.diagnose());
 
       /* over */
       body.appendChild(el('p', 'hint',
         'Alle geluiden zijn genormaliseerd op &minus;16 LUFS (EBU R128). ' +
         'Wil je er eentje harder of zachter? Zet het slotje aan en tik de knop aan.'));
+    },
+
+    /** Wat staat er nu eigenlijk op dit toestel? Handig als iets het niet
+        doet en je dat moet kunnen doorgeven zonder een console te openen. */
+    diagnose: function () {
+      var box = el('pre', 'diag');
+      var video = this.manifest.filter(function (d) { return d.kind === 'video'; });
+      var regels = [
+        'versie      ' + (global.APP_VERSION || '?'),
+        'knoppen     ' + this.defs.length + ' (' + video.length + ' video)',
+        'pagina      ' + (document.getElementById('vid-stage') ? 'met speler' : 'ZONDER SPELER - verouderd'),
+        'geluid      ' + (E.ctx ? E.ctx.state : 'nog niet open') +
+                         ', mislukt: ' + (E.failed.length ? E.failed.join(',') : 'niets'),
+        'offline     ' + (navigator.serviceWorker && navigator.serviceWorker.controller
+                          ? 'service worker actief' : 'geen service worker')
+      ];
+      video.forEach(function (d) {
+        var el2 = (UI.vidEls || {})[d.id];
+        var vd = E.videos[d.id];
+        var kan = el2 ? (el2.canPlayType(d.file.slice(-4) === 'webm' ? 'video/webm' : 'video/mp4') || 'nee') : '?';
+        regels.push('video ' + d.id);
+        regels.push('  element   ' + (el2 ? 'ja, staat ' + el2.readyState + '/4 klaar' : 'ONTBREEKT'));
+        regels.push('  formaat   ' + kan);
+        regels.push('  fout      ' + (el2 && el2.error ? 'code ' + el2.error.code + ' ' + (el2.error.message || '') : 'geen'));
+        regels.push('  geluid    ' + (vd ? (vd.los ? 'los van de keten' : 'via de keten') : 'nog niet aangehaakt'));
+      });
+      box.textContent = regels.join('\n');
+      return box;
     },
 
     /** Caches en service worker wegdoen en opnieuw laden. */
