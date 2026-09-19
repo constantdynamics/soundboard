@@ -242,6 +242,14 @@ aanhaken aan de keten mislukt — en dat kan: Safari weigert
 speelt de video gewoon door met zijn eigen geluid en volgt het mastervolume
 via `el.volume`. De video zit ook altijd in het noodpakket.
 
+**Volgorde binnen de tik.** Eerst het volledige scherm aanvragen, dan pas
+`play()`. Andersom breekt de omschakeling het startverzoek af en krijg je een
+`AbortError` — precies wat er gebeurde toen dit erin ging. Om dezelfde reden
+wordt er alleen teruggespoeld als het nodig is: een overbodige seek vlak voor
+`play()` doet hetzelfde. En mocht het toch gebeuren, dan is een `AbortError`
+per definitie tijdelijk: de speler probeert het na 150 ms zelf nog één keer
+voordat hij iets in beeld zet. Eén keer, niet eindeloos.
+
 **Niets faalt stil.** De laag gaat altijd eerst open en het afspelen begint
 binnen dezelfde tik; al het andere — de geluidsketen, het onthouden van wat
 er speelde, de draaiing — staat in een try/catch erachter. Weigert de

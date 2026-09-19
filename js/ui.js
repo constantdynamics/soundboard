@@ -388,10 +388,7 @@
         if (!el) return;
         if (el.paused) {
           self.vidMelding('');
-          var p = E.playVideo(self.vidNu);
-          if (p && p.catch) p.catch(function (e) {
-            self.vidMelding('Nog steeds niet: ' + (e && e.name ? e.name : e));
-          });
+          self.vidStart(self.vidNu, true);   // niet terugspoelen: gewoon verder
           self.vidRust();
         } else { E.pauseVideo(self.vidNu); }
         self.vidVerf();
@@ -458,39 +455,56 @@
       vid.setAttribute('aria-hidden', 'false');
       vid.classList.remove('is-rustig', 'is-gepauzeerd');
 
-      // 2. afspelen, nog steeds binnen de tik
-      try { el.currentTime = 0; } catch (e) {}
-      var start;
-      try {
-        E.openVideo(id, el);
-        start = E.playVideo(id, 0);
-      } catch (e) {
-        start = null;
-        this.vidMelding('Starten mislukt: ' + (e && e.message ? e.message : e));
-      }
-      if (start && start.then) {
-        start.catch(function (e) {
-          self.vidMelding('De telefoon wilde de video niet starten: ' +
-            (e && e.name ? e.name : e) + '. Tik op het scherm om het opnieuw te proberen.');
-        });
+      // 2. eerst het volledige scherm aanvragen, dan pas afspelen. Andersom
+      //    breekt de omschakeling het startverzoek af (AbortError). Op iOS
+      //    bestaat dit niet voor een gewone laag; daar gebeurt er niets.
+      if (vid.requestFullscreen) {
+        try {
+          vid.requestFullscreen().then(function () {
+            var o = global.screen && global.screen.orientation;
+            if (o && o.lock && self.vidLiggend()) o.lock('landscape').catch(function () {});
+          }).catch(function () {});
+        } catch (e) {}
       }
 
-      // 3. de rest mag rustig stukgaan zonder dat je het beeld kwijtraakt
+      // 3. afspelen, nog steeds binnen de tik
+      try { E.openVideo(id, el); } catch (e) {}
+      this.vidStart(id, false);
+
+      // 4. de rest mag rustig stukgaan zonder dat je het beeld kwijtraakt
       try { this.vidWacht = E.snapshot(); } catch (e) { this.vidWacht = null; }
       try { this.vidDraai(); } catch (e) {}
       try { this.vidVerf(); } catch (e) {}
       this.vidToon();
       this.vidLoop();
       this.wake();
+    },
 
-      // waar het kan ook de browserbalken eraf; op iOS bestaat dit niet
-      // voor een gewone div, daar is de laag zelf al het hele scherm
-      if (vid.requestFullscreen) {
-        vid.requestFullscreen().then(function () {
-          var o = global.screen && global.screen.orientation;
-          if (o && o.lock && self.vidLiggend()) o.lock('landscape').catch(function () {});
-        }).catch(function () {});
+    /** Zet het afspelen in gang. Een AbortError betekent alleen dat het
+        verzoek onderbroken werd - door het omschakelen naar volledig scherm,
+        het draaien of een seek. Dat is niet stuk, dat is te laat: we proberen
+        het dan gewoon zelf nog een keer in plaats van jou te laten tikken. */
+    vidStart: function (id, nogmaals) {
+      var self = this;
+      var start;
+      try {
+        start = E.playVideo(id, nogmaals ? null : 0);
+      } catch (e) {
+        this.vidMelding('Starten mislukt: ' + (e && e.message ? e.message : e));
+        return;
       }
+      if (!start || !start.then) return;
+      start.then(function () { self.vidMelding(''); }).catch(function (e) {
+        var naam = e && e.name ? e.name : String(e);
+        if (naam === 'AbortError' && !nogmaals && self.vidNu === id) {
+          setTimeout(function () {
+            if (self.vidNu === id) self.vidStart(id, true);
+          }, 150);
+          return;
+        }
+        self.vidMelding('De telefoon wilde de video niet starten: ' + naam +
+          '. Tik op het scherm om het opnieuw te proberen.');
+      });
     },
 
     vidBezig: function (aan) {

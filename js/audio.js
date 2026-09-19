@@ -517,7 +517,11 @@
         try { v.el.volume = Math.max(0, Math.min(1, (this.masterVolume == null ? 100 : this.masterVolume) / 100)); }
         catch (e) {}
       }
-      if (vanaf != null) { try { v.el.currentTime = vanaf; } catch (e) {} }
+      // Alleen spoelen als het echt nodig is. Een overbodige seek vlak voor
+      // play() is precies waar een AbortError vandaan komt.
+      if (vanaf != null && Math.abs((v.el.currentTime || 0) - vanaf) > 0.05) {
+        try { v.el.currentTime = vanaf; } catch (e) {}
+      }
       var voice = { video: true, startedAt: t, fading: false, duck: v.duck, duckTarget: 1 };
       this.voices[id] = [voice];
       return v.el.play();          // de belofte gaat terug naar de aanroeper
