@@ -129,6 +129,17 @@ De service worker haalt bestanden op met revalidatie, zodat een nieuwe versie
 meteen doorkomt in plaats van achter de cache van GitHub Pages te blijven
 hangen.
 
+Een Range-verzoek waarvoor niets in de cache staat gaat rechtstreeks naar het
+netwerk en de service worker blijft erbuiten. Er tegelijk ook het hele bestand
+bij ophalen om de cache te vullen leek handig, maar betekende twee downloads
+naast elkaar van hetzelfde bestand — en bij een video, die tientallen stukjes
+opvraagt, evenzoveel. Op een telefoon loopt de speler daar op vast met
+`PIPELINE_ERROR_READ`. Vullen doet **Offline klaarzetten**: die haalt elk
+bestand één keer in zijn geheel op, zonder Range. Daarna worden de stukjes uit
+de cache gesneden, mét `Accept-Ranges` en na controle dat het opgeslagen
+bestand compleet is — een half bewaard bestand wordt weggegooid in plaats van
+in stukjes uitgedeeld.
+
 Audiobestanden gaan anders: die worden uit de cache geserveerd zonder na te
 vragen, want dat scheelt wachttijd en ze veranderen zelden. Vervang je er toch
 eentje, dan zou je de oude versie blijven horen. Daarom zet

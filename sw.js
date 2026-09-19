@@ -6,7 +6,7 @@
      langs de browsercache, en die houdt GitHub Pages-bestanden tien minuten
      vast — dan zie je na een update nog de oude soundboard.                */
 
-var CACHE = 'bfss-v8';
+var CACHE = 'bfss-v9';
 var CORE = [
   './', './index.html', './css/style.css', './css/fonts.css',
   './fonts/audiowide-400.woff2', './fonts/chakra-petch-600.woff2', './fonts/chakra-petch-700.woff2', './fonts/monoton-400.woff2', './fonts/orbitron-500.woff2', './fonts/orbitron-700.woff2', './fonts/orbitron-900.woff2', './fonts/press-start-2p-400.woff2', './fonts/righteous-400.woff2', './fonts/vt323-400.woff2',
@@ -65,33 +65,58 @@ function mediaType(pathname) {
    het doorspoelen, dus snijden we het juiste stuk er zelf uit en antwoorden met
    een 206. Zonder Range-kop gaat het gewoon zoals eerst: uit de cache als het
    er is, anders ophalen en bewaren.                                          */
+/* Het laatst uitgesneden bestand blijft even in het geheugen. Een speler
+   vraagt tientallen stukjes achter elkaar op, en anders lezen we voor elk
+   stukje het hele bestand opnieuw uit de cache. */
+var laatsteUrl = null, laatsteBuf = null;
+
 function audioResponse(req) {
   var range = req.headers.get('range');
   var key = new Request(req.url, { credentials: 'same-origin' });
 
   return caches.match(key).then(function (hit) {
     if (!hit) {
+      // Niets in de cache en de speler vraagt om een stukje: dan laten we
+      // het netwerk het doen en houden we ons erbuiten. Er tegelijk ook
+      // het hele bestand bij ophalen betekende twee downloads naast elkaar
+      // van hetzelfde bestand - op een telefoon is dat precies hoe een
+      // lezing vastloopt. Vullen doet 'Offline klaarzetten', die haalt het
+      // bestand in één keer zonder Range op.
+      if (range) {
+        return fetch(req).catch(function () {
+          return caches.match(key).then(function (h) { return h || Response.error(); });
+        });
+      }
       return fetch(req).then(function (res) {
-        // Een 206 slaan we niet op; het volledige bestand halen we los op.
         if (res.status === 200) {
           var copy = res.clone();
-          caches.open(CACHE).then(function (c) { c.put(key, copy); });
-        } else if (res.status === 206) {
-          fetch(key).then(function (vol) {
-            if (vol.ok) caches.open(CACHE).then(function (c) { c.put(key, vol); });
-          }).catch(function () {});
+          caches.open(CACHE).then(function (c) { c.put(key, copy); }).catch(function () {});
         }
         return res;
       });
     }
     if (!range) return hit;
 
-    return hit.arrayBuffer().then(function (buf) {
+    var vooraf = (laatsteUrl === req.url && laatsteBuf)
+      ? Promise.resolve(laatsteBuf)
+      : hit.arrayBuffer().then(function (b) { laatsteUrl = req.url; laatsteBuf = b; return b; });
+
+    return vooraf.then(function (buf) {
+      // Een half opgeslagen bestand is erger dan geen: dan kloppen de
+      // stukjes niet met wat de speler verwacht en geeft die een leesfout.
+      var verwacht = parseInt(hit.headers.get('Content-Length') || '0', 10);
+      if (verwacht && buf.byteLength !== verwacht) {
+        laatsteUrl = laatsteBuf = null;
+        caches.open(CACHE).then(function (c) { c.delete(key); }).catch(function () {});
+        return fetch(req);
+      }
+
       var m = /bytes=(\d*)-(\d*)/.exec(range) || [];
       var start = m[1] ? parseInt(m[1], 10) : 0;
       var end = m[2] ? parseInt(m[2], 10) : buf.byteLength - 1;
       if (isNaN(start) || start >= buf.byteLength) start = 0;
       if (isNaN(end) || end >= buf.byteLength) end = buf.byteLength - 1;
+      if (end < start) end = buf.byteLength - 1;
       var deel = buf.slice(start, end + 1);
       return new Response(deel, {
         status: 206,
@@ -99,7 +124,8 @@ function audioResponse(req) {
         headers: {
           'Content-Type': hit.headers.get('Content-Type') || mediaType(new URL(req.url).pathname),
           'Content-Length': String(deel.byteLength),
-          'Content-Range': 'bytes ' + start + '-' + end + '/' + buf.byteLength
+          'Content-Range': 'bytes ' + start + '-' + end + '/' + buf.byteLength,
+          'Accept-Ranges': 'bytes'        // hierop besluit de speler of hij mag spoelen
         }
       });
     });
