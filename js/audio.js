@@ -43,6 +43,7 @@
     ready: false,
     buffers: {},        // id -> AudioBuffer (korte geluiden)
     streams: {},        // id -> { el, source, gain } (lange nummers)
+    videos: {},         // id -> { el, source, gain, duck } (video's)
     raw: {},            // id -> ArrayBuffer (voor het ontgrendelen)
     defs: {},           // id -> manifest-entry
     gains: {},          // id -> GainNode
@@ -66,7 +67,8 @@
         var ingebakken = bak[d.file] || bak[d.id];
         if (ingebakken) return ingebakken;
       }
-      return (base || this.base || 'audio/') + d.file + (d.hash ? '?v=' + d.hash : '');
+      var map = base || (d.kind === 'video' ? 'video/' : (this.base || 'audio/'));
+      return map + d.file + (d.hash ? '?v=' + d.hash : '');
     },
 
     /* ---- stap 1: bytes binnenhalen (mag vóór de eerste tik) ---- */
@@ -172,7 +174,8 @@
       }).then(function () {
         self.raw = {};              // ruwe bytes mogen weg na het decoderen
         Object.keys(self.defs).forEach(function (id) {
-          if (self.defs[id].stream) self.openStream(id);
+          var d = self.defs[id];
+          if (d.stream && d.kind !== 'video') self.openStream(id);
         });
         self.ready = true;
       });
@@ -310,7 +313,10 @@
     },
 
     /* ---- afspelen ---------------------------------------------- */
-    play: function (id) {
+    /** Speelt een geluid af. Met `vanaf` begint het op dat punt in plaats
+        van bij het begin; dat gebruiken we om na een video weer op te
+        pakken waar we gebleven waren. */
+    play: function (id, vanaf) {
       if (!this.ready) return null;
 
       var st = this.streams[id];
@@ -322,7 +328,8 @@
         var sp = this.span(id);
         st.lastPos = 0;                        // een tik op de knop begint vooraan
         this.lastStreamId = id;
-        try { st.el.currentTime = sp.start; } catch (e) {}
+        var beginS = (vanaf != null && vanaf > sp.start && vanaf < sp.end) ? vanaf : sp.start;
+        try { st.el.currentTime = beginS; } catch (e) {}
         st.stopAt = sp.end;
         st.el.play().catch(function () {});
         st.duck.gain.cancelScheduledValues(t);   // begint altijd op vol volume
@@ -347,10 +354,12 @@
       vg.connect(this.gains[id]);
 
       var sp = this.span(id);
+      var begin = (vanaf != null && vanaf > sp.start && vanaf < sp.end) ? vanaf : sp.start;
       var voice = {
         src: src, gain: vg, duck: duck, duckTarget: 1,
         startedAt: ctx.currentTime,
-        duration: Math.max(0.02, sp.end - sp.start),
+        offset: begin - sp.start,          // hoe ver we al waren bij de start
+        duration: Math.max(0.02, sp.end - begin),
         fading: false
       };
       var self = this;
@@ -361,7 +370,7 @@
         try { vg.disconnect(); duck.disconnect(); } catch (e) {}
         self.applyDucking();
       };
-      src.start(0, sp.start, voice.duration);
+      src.start(0, begin, voice.duration);
       this.voices[id].push(voice);
       this.applyDucking();
       return voice;
@@ -381,6 +390,24 @@
       this.applyDucking();
       var t = this.ctx.currentTime;
       var s = Math.max(0.05, seconds || 1);
+
+      if (voice.video) {
+        var vd = this.videos[id];
+        if (!vd) return;
+        var zelf = this;
+        try {
+          vd.gain.gain.cancelScheduledValues(t);
+          vd.gain.gain.setValueAtTime(Math.max(vd.gain.gain.value, 0.0001), t);
+          vd.gain.gain.exponentialRampToValueAtTime(0.0001, t + s);
+        } catch (e) {}
+        setTimeout(function () {
+          try { vd.el.pause(); } catch (e) {}
+          try { vd.gain.gain.setValueAtTime(1, zelf.ctx.currentTime); } catch (e) {}
+          zelf.voices[id] = [];
+          zelf.applyDucking();
+        }, s * 1000 + 40);
+        return;
+      }
 
       if (voice.stream) {
         var st = this.streams[id];
@@ -419,6 +446,101 @@
         self.voices[id].slice().forEach(function (v) { self.fadeVoice(v, seconds, id); });
       });
       return any;
+    },
+
+    /* ---- video ---------------------------------------------------- */
+
+    /** Hangt het geluidsspoor van een <video> aan dezelfde keten als de
+        rest: eigen gain met de gemeten correctie, dan de master en de
+        limiter. Zo klinkt een video niet ineens harder of zachter dan de
+        geluiden eromheen. Het element zelf blijft van de interface; het
+        staat in de speler en verhuist nooit, want een <video> verplaatsen
+        in de pagina onderbreekt het afspelen. */
+    openVideo: function (id, el) {
+      if (this.videos[id]) return this.videos[id];
+      this.openContext();
+
+      var source = this.ctx.createMediaElementSource(el);
+      var duck = this.ctx.createGain();
+      duck.gain.value = 1;
+      var vg = this.ctx.createGain();
+      vg.gain.value = 1;
+      source.connect(duck);
+      duck.connect(vg);
+
+      var g = this.ctx.createGain();
+      g.gain.value = this.gainFor(id);
+      g.connect(this.masterGain);
+      vg.connect(g);
+      this.gains[id] = g;
+      this.voices[id] = [];
+
+      this.videos[id] = { el: el, source: source, gain: vg, duck: duck };
+      return this.videos[id];
+    },
+
+    playVideo: function (id, vanaf) {
+      var v = this.videos[id];
+      if (!v) return null;
+      this.openContext();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      var t = this.ctx.currentTime;
+      v.gain.gain.cancelScheduledValues(t);
+      v.gain.gain.setValueAtTime(1, t);
+      v.duck.gain.cancelScheduledValues(t);
+      v.duck.gain.setValueAtTime(1, t);
+      if (vanaf != null) { try { v.el.currentTime = vanaf; } catch (e) {} }
+      var voice = { video: true, startedAt: t, fading: false, duck: v.duck, duckTarget: 1 };
+      this.voices[id] = [voice];
+      var p = v.el.play();
+      if (p && p.catch) p.catch(function () {});
+      return voice;
+    },
+
+    pauseVideo: function (id) {
+      var v = this.videos[id];
+      if (v) { try { v.el.pause(); } catch (e) {} }
+    },
+
+    stopVideo: function (id) {
+      var v = this.videos[id];
+      if (!v) return;
+      try { v.el.pause(); v.el.currentTime = 0; } catch (e) {}
+      this.voices[id] = [];
+      this.applyDucking();
+    },
+
+    /* ---- onderbreken en weer oppakken ----------------------------- */
+
+    /** Noteert wat er speelt en waar het is, en legt het daarna stil. Wordt
+        gebruikt als een video het podium overneemt. */
+    snapshot: function () {
+      var self = this, uit = [];
+      if (!this.ctx) return uit;
+      var t = this.ctx.currentTime;
+      Object.keys(this.voices).forEach(function (id) {
+        if (self.videos[id]) return;                 // een video pauzeert zichzelf
+        (self.voices[id] || []).forEach(function (v) {
+          if (v.fading) return;
+          var sp = self.span(id), pos;
+          if (v.stream) {
+            var st = self.streams[id];
+            pos = st && st.el ? st.el.currentTime : sp.start;
+          } else {
+            pos = sp.start + (v.offset || 0) + (t - v.startedAt);
+          }
+          if (pos < sp.end - 0.2) uit.push({ id: id, pos: pos });
+        });
+      });
+      this.fadeAll(0.25);
+      return uit;
+    },
+
+    /** Zet terug wat snapshot() heeft weggehaald, op het punt waar het was. */
+    restore: function (lijst) {
+      var self = this;
+      (lijst || []).forEach(function (s) { self.play(s.id, s.pos); });
+      return (lijst || []).length;
     },
 
     /* ---- lange nummers: hervatten en verspringen ----------------- */
@@ -654,7 +776,9 @@
         if (list[i].startedAt < oldest.startedAt) oldest = list[i];
       }
       if (!oldest.duration) return 0;
-      return Math.max(0, Math.min(1, (t - oldest.startedAt) / oldest.duration));
+      // na hervatten telt het stuk dat al voorbij was gewoon mee
+      var al = oldest.offset || 0;
+      return Math.max(0, Math.min(1, (al + t - oldest.startedAt) / (al + oldest.duration)));
     },
 
     voiceCount: function (id) {

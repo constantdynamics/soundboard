@@ -121,6 +121,42 @@
 </div>
 
 <!-- ------------------------------------------------------------- -->
+<!-- Videospeler: vult het hele scherm, ligt boven alles -->
+<div class="vid" id="vid" hidden aria-hidden="true">
+ <div class="vid-draai" id="vid-draai">
+  <div class="vid-stage" id="vid-stage"><!-- de <video>-elementen komen hier --></div>
+  <div class="vid-ui" id="vid-ui">
+    <button class="vid-close" id="vid-close" type="button" aria-label="Video sluiten">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <button class="vid-tap" id="vid-tap" type="button" aria-label="Pauzeren of hervatten">
+      <svg class="vid-big" id="vid-big" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M7 4.5l12 7.5-12 7.5z"/>
+      </svg>
+    </button>
+    <div class="vid-bar">
+      <span class="vid-time" id="vid-now">0:00</span>
+      <input class="vid-scrub" id="vid-scrub" type="range" min="0" max="1000" value="0"
+             aria-label="Door de video schuiven">
+      <span class="vid-time" id="vid-dur">0:00</span>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- Vraagt eerst of de video echt mag beginnen -->
+<div class="vid-ask" id="vid-ask" hidden>
+  <div class="vid-ask-box">
+    <p class="vid-ask-title" id="vid-ask-title">VIDEO AFSPELEN?</p>
+    <p class="vid-ask-note">Alles wat nu speelt stopt en gaat na afloop verder waar het was.</p>
+    <div class="row">
+      <button class="btn" id="vid-ask-no" type="button">NEE</button>
+      <button class="btn btn--accent" id="vid-ask-yes" type="button">AFSPELEN</button>
+    </div>
+  </div>
+</div>
+
 <div class="scrim" id="scrim" hidden></div>
 
 <!-- Instellingenpaneel -->

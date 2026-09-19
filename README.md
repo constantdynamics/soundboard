@@ -206,6 +206,48 @@ achterblijft — tekst hoeft niet twee keer zo groot als de knop twee keer zo
 groot wordt. De tekstgrootte staat daar los van, dus kleine letters onder
 grote knoppen kan ook.
 
+## Video
+
+Een knop kan ook een video zijn. Die staat gewoon tussen de andere knoppen,
+met een afspeel-icoon en een klein hoekje rechtsboven.
+
+**Voordat hij begint wordt het gevraagd.** Een video per ongeluk starten
+midden in een speech is een stuk vervelender dan een geluidje; er komt dus
+eerst een schermpje met NEE en AFSPELEN.
+
+**Wat er speelde wordt onthouden.** Bij het starten wordt genoteerd wat er
+liep en hoe ver het was, en dat faadt weg. Sluit je de video, dan pakt het
+de draad weer op op precies dat punt — ook halverwege een nummer.
+
+**Beeldvullend, met de juiste verhoudingen.** Een liggende video op een
+staand scherm wordt een kwartslag gedraaid, knoppen en al: dat scheelt bijna
+een factor twee in beeldgrootte. Kantel je toestel en het staat goed. Draait
+het scherm zelf mee (Android kan dat vastzetten), dan gaat onze eigen draai
+er weer af. Waar het kan wordt ook de fullscreen-api aangeroepen om de
+browserbalken kwijt te raken; op iOS bestaat die voor een gewone laag niet,
+maar daar is de laag zelf al het hele scherm.
+
+**Bediening:** tik ergens om te pauzeren of verder te gaan, een balk onderin
+om doorheen te schuiven, een kruisje rechtsboven om af te sluiten. Na een
+paar seconden spelen vallen de knoppen weg; raak het scherm aan en ze zijn
+terug. Aan het eind sluit de speler vanzelf. De speech-timer loopt gewoon
+door.
+
+**Het geluid gaat door dezelfde keten** als de rest: de gemeten correctie,
+het mastervolume en de limiter. Een video klinkt dus niet ineens harder of
+zachter dan een geluidje. De video zit ook altijd in het noodpakket.
+
+Aanleveren gaat zoals bij audio: zet het bestand in `video/` en draai
+`analyze_loudness.py` en `sync_manifest.py`. Het manifest krijgt dan
+`"kind": "video"` plus de afmetingen. Video's worden altijd gestreamd — ze
+vooraf decoderen naar een audiobuffer zou het beeld toch niet meebrengen.
+
+**Formaat: mp4 met h264 en aac.** Dat is het enige dat op elke telefoon
+speelt. Let op de bitrate van wat je aanlevert: de eerste video kwam binnen
+op 8 Mbit/s (29,6 MB voor 29 seconden). Opnieuw gecodeerd op crf 23 werd dat
+5,1 MB met een SSIM van 0,986 tegenover het origineel — op een telefoon niet
+van elkaar te onderscheiden.
+
 ## Korte geluiden en lange nummers
 
 Een minuut gedecodeerde stereo kost ongeveer 22 MB werkgeheugen. Met vier
@@ -362,6 +404,7 @@ Gemeten waarden:
 | PIAN DI CASCINA | 183.4s | -17.83 | +1.83 dB |
 | PIAN DI CASCINA 1 | 10.6s | -17.83 | +1.83 dB |
 | 11 STEDEN | 13.5s | -17.11 | +1.11 dB |
+| REAL LIFE (video) | 29.1s | -32.43 | +16.43 dB |
 
 ## Opbouw
 
@@ -370,6 +413,7 @@ index.html              opbouw van de pagina
 css/style.css           synthwave-stijl, mobiel eerst
 css/fonts.css           de lettertypes, uit fonts/ in plaats van bij Google
 fonts/                  de woff2-bestanden (latijnse uitsnede, 126 kB totaal)
+video/                  de video's (mp4, h264 + aac)
 js/icons.js             iconenbibliotheek (inline SVG) + suggesties op naam
 js/settings.js          presets, opslag in de browser, export/import
 js/audio.js             Web Audio: vooraf laden, afspelen, faden, limiter

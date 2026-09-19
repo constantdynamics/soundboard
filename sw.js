@@ -6,7 +6,7 @@
      langs de browsercache, en die houdt GitHub Pages-bestanden tien minuten
      vast — dan zie je na een update nog de oude soundboard.                */
 
-var CACHE = 'bfss-v7';
+var CACHE = 'bfss-v8';
 var CORE = [
   './', './index.html', './css/style.css', './css/fonts.css',
   './fonts/audiowide-400.woff2', './fonts/chakra-petch-600.woff2', './fonts/chakra-petch-700.woff2', './fonts/monoton-400.woff2', './fonts/orbitron-500.woff2', './fonts/orbitron-700.woff2', './fonts/orbitron-900.woff2', './fonts/press-start-2p-400.woff2', './fonts/righteous-400.woff2', './fonts/vt323-400.woff2',
@@ -39,7 +39,7 @@ self.addEventListener('message', function (e) {
       return c.keys().then(function (keys) {
         return Promise.all(keys.map(function (req) {
           var u = new URL(req.url);
-          if (!isAudio(u.pathname)) return null;
+          if (!isMedia(u.pathname)) return null;
           return e.data.urls.indexOf(u.pathname + u.search) >= 0 ? null : c.delete(req);
         }));
       });
@@ -47,7 +47,18 @@ self.addEventListener('message', function (e) {
   }
 });
 
-function isAudio(pathname) { return /\.(mp3|ogg|wav|m4a)$/i.test(pathname); }
+/* Video krijgt precies dezelfde behandeling als audio: uit de cache en met
+   Range-antwoorden, want ook door een video wil je kunnen schuiven. */
+function isMedia(pathname) { return /\.(mp3|ogg|wav|m4a|mp4|webm|mov|m4v)$/i.test(pathname); }
+
+function mediaType(pathname) {
+  if (/\.mp4$|\.m4v$|\.mov$/i.test(pathname)) return 'video/mp4';
+  if (/\.webm$/i.test(pathname)) return 'video/webm';
+  if (/\.ogg$/i.test(pathname)) return 'audio/ogg';
+  if (/\.wav$/i.test(pathname)) return 'audio/wav';
+  if (/\.m4a$/i.test(pathname)) return 'audio/mp4';
+  return 'audio/mpeg';
+}
 
 /* Lange nummers worden gestreamd, en dan vraagt de browser stukjes op met een
    Range-kop. Een opgeslagen volledig antwoord teruggeven op zo'n verzoek breekt
@@ -86,7 +97,7 @@ function audioResponse(req) {
         status: 206,
         statusText: 'Partial Content',
         headers: {
-          'Content-Type': hit.headers.get('Content-Type') || 'audio/mpeg',
+          'Content-Type': hit.headers.get('Content-Type') || mediaType(new URL(req.url).pathname),
           'Content-Length': String(deel.byteLength),
           'Content-Range': 'bytes ' + start + '-' + end + '/' + buf.byteLength
         }
@@ -101,7 +112,7 @@ self.addEventListener('fetch', function (e) {
   var url = new URL(req.url);
   if (url.origin !== location.origin) return;      // Google Fonts e.d. met rust laten
 
-  if (isAudio(url.pathname)) {
+  if (isMedia(url.pathname)) {
     e.respondWith(audioResponse(req));
     return;
   }

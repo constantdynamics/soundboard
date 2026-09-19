@@ -14,6 +14,7 @@ import glob, hashlib, json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AUDIO_DIR = os.path.join(ROOT, "audio")
+VIDEO_DIR = os.path.join(ROOT, "video")
 LOUDNESS = os.path.join(ROOT, "data", "loudness.json")
 MANIFEST = os.path.join(ROOT, "data", "sounds.json")
 # Dezelfde gegevens, maar als gewoon script. De app leest dit en haalt het
@@ -76,6 +77,20 @@ def waveform(path):
         return None
 
 
+def video_maat(path):
+    """Breedte en hoogte van een video, zodat de app vooraf weet of het
+    beeld liggend of staand is en niet hoeft te wachten op de metadata."""
+    try:
+        import imageio_ffmpeg, subprocess, re
+        r = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-i", path],
+                           capture_output=True, text=True)
+        m = re.search(r"Video:.*?(\d{2,5})x(\d{2,5})", r.stderr)
+        return (int(m.group(1)), int(m.group(2))) if m else (None, None)
+    except Exception as e:
+        print(f"  (afmeting van {os.path.basename(path)} mislukt: {e})")
+        return (None, None)
+
+
 def file_hash(path):
     """Korte hash van de inhoud. Die hangt in de url achter het bestand, zodat
     een vervangen geluid een nieuwe url krijgt en de browser hem opnieuw
@@ -120,6 +135,13 @@ def main():
 
     files = sorted(os.path.basename(p) for p in glob.glob(os.path.join(AUDIO_DIR, "*"))
                    if p.lower().endswith((".mp3", ".ogg", ".wav", ".m4a")))
+    videos = sorted(os.path.basename(p) for p in glob.glob(os.path.join(VIDEO_DIR, "*"))
+                    if p.lower().endswith((".mp4", ".webm", ".mov", ".m4v")))
+    films = set(videos)
+    files += videos
+
+    def mapvan(naam):
+        return VIDEO_DIR if naam in films else AUDIO_DIR
 
     out, added = [], 0
     for entry in manifest["sounds"]:                  # bestaande volgorde eerst
@@ -128,27 +150,40 @@ def main():
     for name in files:                                # daarna het nieuwe werk
         if name in by_file:
             continue
-        out.append({
+        nieuw = {
             "id": slugify(name),
             "file": name,
             "label": labelize(name),
-            "icon": guess_icon(name),
+            "icon": "play" if name in films else guess_icon(name),
             "color": PALETTE[(len(out)) % len(PALETTE)],
-        })
+        }
+        if name in films:
+            nieuw["kind"] = "video"
+        out.append(nieuw)
         added += 1
 
     for entry in out:                                 # meting en hash doorzetten
+        film = entry["file"] in films
         m = loud.get(entry["file"])
         if m:
             entry["gainDb"] = m["gainDb"]
             entry["duration"] = m["duration"]
-        pad = os.path.join(AUDIO_DIR, entry["file"])
+        pad = os.path.join(mapvan(entry["file"]), entry["file"])
         if os.path.exists(pad):
             entry["hash"] = file_hash(pad)
-            golf = waveform(pad)
-            if golf:
-                entry["peaks"] = golf
-        if entry.get("duration", 0) > STREAM_BOVEN_SECONDEN:
+            if film:
+                entry["kind"] = "video"
+                b, h = video_maat(pad)
+                if b:
+                    entry["w"], entry["h"] = b, h
+                entry.pop("peaks", None)
+            else:
+                golf = waveform(pad)
+                if golf:
+                    entry["peaks"] = golf
+        # Een video wordt altijd gestreamd: hem vooraf decoderen naar een
+        # audiobuffer zou het beeld toch niet meebrengen.
+        if film or entry.get("duration", 0) > STREAM_BOVEN_SECONDEN:
             entry["stream"] = True
         else:
             entry.pop("stream", None)
@@ -167,7 +202,8 @@ def main():
 
     print(f"{len(out)} geluiden in data/sounds.json en js/manifest.js ({added} nieuw)")
     for e in out:
-        print(f"  {e['label']:26s} {e['icon']:10s} {e['color']}  {e.get('gainDb', 0):+.2f} dB")
+        soort = "video" if e.get("kind") == "video" else ""
+        print(f"  {e['label']:26s} {e['icon']:10s} {e['color']}  {e.get('gainDb', 0):+.2f} dB  {soort}")
 
 
 if __name__ == "__main__":

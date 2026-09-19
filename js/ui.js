@@ -126,6 +126,7 @@
       });
 
       this.bindChrome();
+      this.initVideo();
       this.applyTheme();
       this.renderBoard();
       this.paintTimer();
@@ -228,6 +229,7 @@
     padEl: function (d, index) {
       var wrap = el('div', 'pad-wrap');
       wrap.dataset.id = d.id;
+      if ((this.byId[d.id] || {}).kind === 'video') wrap.dataset.kind = 'video';
       if (index !== undefined) wrap.dataset.slot = index;
       wrap.style.setProperty('--c', d.color);
       wrap.style.setProperty('--c-rgb', hexToRgb(d.color));
@@ -313,6 +315,8 @@
     },
 
     trigger: function (id, pad) {
+      var def = this.byId[id] || {};
+      if (def.kind === 'video') { this.askVideo(id, pad); return; }
       var v = E.play(id);
       if (!v) return;
       if (E.streams[id]) this.npDismissed = false;
@@ -324,6 +328,199 @@
         Timer.start();                            // timer loopt mee vanaf het eerste geluid
       }
       this.wake();
+    },
+
+    /* ---- video ----------------------------------------------------- */
+
+    /** Zet voor elke video een <video> klaar in de speler: verborgen, maar
+        wel alvast aan het inladen. Het element blijft daar staan - een
+        <video> verplaatsen in de pagina onderbreekt het afspelen. */
+    initVideo: function () {
+      var self = this;
+      var stage = $('vid-stage');
+      if (!stage) return;
+      this.vidEls = this.vidEls || {};
+      this.defs.forEach(function (d) {
+        if (d.kind !== 'video' || self.vidEls[d.id]) return;
+        var el = document.createElement('video');
+        el.src = E.srcFor(d);
+        el.preload = 'auto';
+        el.playsInline = true;
+        el.setAttribute('playsinline', '');
+        el.setAttribute('webkit-playsinline', '');
+        el.crossOrigin = 'anonymous';
+        el.hidden = true;
+        stage.appendChild(el);
+        self.vidEls[d.id] = el;
+        el.addEventListener('ended', function () { self.closeVideo(); });
+      });
+      this.bindVideo();
+    },
+
+    bindVideo: function () {
+      if (this.vidGebonden) return;
+      this.vidGebonden = true;
+      var self = this;
+      var sluit = $('vid-close'), tik = $('vid-tap'), schuif = $('vid-scrub');
+
+      sluit.addEventListener('click', function (ev) {
+        ev.stopPropagation(); self.closeVideo();
+      });
+      tik.addEventListener('click', function () {
+        var el = self.vidNu && self.vidEls[self.vidNu];
+        if (!el) return;
+        if (el.paused) { E.playVideo(self.vidNu); self.vidRust(); }
+        else { E.pauseVideo(self.vidNu); }
+        self.vidVerf();
+        self.vidToon();
+      });
+      schuif.addEventListener('input', function () {
+        var el = self.vidNu && self.vidEls[self.vidNu];
+        if (!el || !el.duration) return;
+        self.vidSchuiven = true;
+        try { el.currentTime = (this.value / 1000) * el.duration; } catch (e) {}
+        self.vidVerf();
+        self.vidToon();
+      });
+      schuif.addEventListener('change', function () { self.vidSchuiven = false; });
+
+      $('vid-ask-no').addEventListener('click', function () { $('vid-ask').hidden = true; });
+      $('vid-ask-yes').addEventListener('click', function () {
+        $('vid-ask').hidden = true;
+        self.openVideo(self.vidVraag);
+      });
+
+      document.addEventListener('keydown', function (ev) {
+        if ($('vid').hidden) return;
+        if (ev.key === 'Escape') self.closeVideo();
+      });
+
+      // Draait het toestel zelf mee (Android kan het scherm vastzetten op
+      // liggend), dan moet onze eigen kwartslag er juist weer af.
+      global.addEventListener('resize', function () {
+        if (!$('vid').hidden) self.vidDraai();
+      });
+      if (global.screen && global.screen.orientation) {
+        global.screen.orientation.addEventListener('change', function () {
+          if (!$('vid').hidden) self.vidDraai();
+        });
+      }
+    },
+
+    /** Vraagt eerst of hij echt mag beginnen. Een video midden in een
+        speech per ongeluk starten is een stuk vervelender dan een geluidje. */
+    askVideo: function (id) {
+      this.vidVraag = id;
+      $('vid-ask-title').textContent = esc(this.get(id).label) + ' AFSPELEN?';
+      $('vid-ask').hidden = false;
+    },
+
+    openVideo: function (id) {
+      var self = this;
+      var el = this.vidEls && this.vidEls[id];
+      if (!el) return;
+
+      E.openContext();
+      E.openVideo(id, el);
+      this.vidWacht = E.snapshot();          // wat er speelde, en waar het was
+      this.vidNu = id;
+
+      Object.keys(this.vidEls).forEach(function (k) { self.vidEls[k].hidden = (k !== id); });
+      var vid = $('vid');
+      vid.hidden = false;
+      vid.setAttribute('aria-hidden', 'false');
+      this.vidDraai();
+      try { el.currentTime = 0; } catch (e) {}
+      E.playVideo(id, 0);
+      this.vidVerf();
+      this.vidToon();
+      this.vidLoop();
+      this.wake();
+
+      // waar het kan ook de browserbalken eraf; op iOS bestaat dit niet
+      // voor een gewone div, daar is de laag zelf al het hele scherm
+      if (vid.requestFullscreen) {
+        vid.requestFullscreen().then(function () {
+          var o = global.screen && global.screen.orientation;
+          if (o && o.lock && self.vidLiggend()) o.lock('landscape').catch(function () {});
+        }).catch(function () {});
+      }
+    },
+
+    closeVideo: function () {
+      var self = this;
+      var vid = $('vid');
+      if (vid.hidden) return;
+      if (this.vidNu) E.stopVideo(this.vidNu);
+      if (this.vidTimer) { cancelAnimationFrame(this.vidTimer); this.vidTimer = null; }
+      if (this.vidRustTimer) { clearTimeout(this.vidRustTimer); this.vidRustTimer = null; }
+
+      var o = global.screen && global.screen.orientation;
+      if (o && o.unlock) { try { o.unlock(); } catch (e) {} }
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(function () {});
+      }
+
+      vid.hidden = true;
+      vid.setAttribute('aria-hidden', 'true');
+      vid.classList.remove('is-rustig', 'is-gepauzeerd', 'is-gedraaid');
+      if (this.vidNu && this.vidEls[this.vidNu]) this.vidEls[this.vidNu].hidden = true;
+      this.vidNu = null;
+
+      // en weer oppakken waar we gebleven waren
+      var wacht = this.vidWacht;
+      this.vidWacht = null;
+      if (wacht && wacht.length) setTimeout(function () { E.restore(wacht); }, 120);
+    },
+
+    /** Ligt het beeld dwars op het scherm? Dan draaien we het hele blok
+        een kwartslag; dat scheelt een factor twee in beeldgrootte. */
+    vidLiggend: function () {
+      var d = this.byId[this.vidNu] || {};
+      var el = this.vidEls && this.vidEls[this.vidNu];
+      var b = d.w || (el && el.videoWidth) || 0;
+      var h = d.h || (el && el.videoHeight) || 0;
+      return b > 0 && h > 0 && b > h;
+    },
+
+    vidDraai: function () {
+      var staand = global.innerHeight > global.innerWidth;
+      $('vid').classList.toggle('is-gedraaid', this.vidLiggend() && staand);
+    },
+
+    vidVerf: function () {
+      var el = this.vidNu && this.vidEls[this.vidNu];
+      if (!el) return;
+      $('vid').classList.toggle('is-gepauzeerd', el.paused);
+      var duur = el.duration && isFinite(el.duration) ? el.duration : 0;
+      $("vid-now").textContent = fmt(el.currentTime || 0);
+      $("vid-dur").textContent = fmt(duur);
+      if (!this.vidSchuiven && duur) {
+        $('vid-scrub').value = Math.round((el.currentTime / duur) * 1000);
+      }
+    },
+
+    /** Knoppen in beeld, en na een paar seconden spelen weer weg. */
+    vidToon: function () {
+      var self = this;
+      $('vid').classList.remove('is-rustig');
+      if (this.vidRustTimer) clearTimeout(this.vidRustTimer);
+      this.vidRustTimer = setTimeout(function () { self.vidRust(); }, 2600);
+    },
+
+    vidRust: function () {
+      var el = this.vidNu && this.vidEls[this.vidNu];
+      if (el && !el.paused) $('vid').classList.add('is-rustig');
+    },
+
+    vidLoop: function () {
+      var self = this;
+      function stap() {
+        if ($('vid').hidden) return;
+        self.vidVerf();
+        self.vidTimer = requestAnimationFrame(stap);
+      }
+      stap();
     },
 
     /* ---- slepen om te herschikken --------------------------------- */
@@ -1008,7 +1205,9 @@
       var gezien = {};
       var lijst = this.manifest.filter(function (d) {
         if (gezien[d.file]) return false;
-        if (!(metLange || !d.stream || nodig[d.file])) return false;
+        // video gaat altijd mee: het beeld is juist waar je het pakket voor
+        // wilt hebben als er ter plekke geen netwerk blijkt te zijn
+        if (!(metLange || d.kind === 'video' || !d.stream || nodig[d.file])) return false;
         gezien[d.file] = true;
         return true;
       });
@@ -1077,9 +1276,11 @@
               return r.arrayBuffer();
             }).then(function (buf) {
               var ext = (d.file.split('.').pop() || '').toLowerCase();
-              var soort = ext === 'wav' ? 'audio/wav'
+              var soort = d.kind === 'video'
+                        ? (ext === 'webm' ? 'video/webm' : 'video/mp4')
+                        : ext === 'wav' ? 'audio/wav'
                         : ext === 'ogg' ? 'audio/ogg'
-                        : (ext === 'm4a' || ext === 'mp4' || ext === 'aac') ? 'audio/mp4'
+                        : (ext === 'm4a' || ext === 'aac') ? 'audio/mp4'
                         : 'audio/mpeg';
               stukken.push('  ' + JSON.stringify(d.file) +
                            ': "data:' + soort + ';base64,' + base64(buf) + '"');
@@ -1368,14 +1569,20 @@
         (d.trimDb > 0 ? '+' : '') + d.trimDb.toFixed(1) + ' dB', trim);
       trimField.querySelector('.field-value').dataset.v = 'trim';
 
-      this.renderWave(body, id);
-      this.renderPolish(body, id);
+      var isVideo = (this.byId[id] || {}).kind === 'video';
+      if (!isVideo) {                  // een video heeft geen golfvorm en
+        this.renderWave(body, id);     // geen filterketen om aan te draaien
+        this.renderPolish(body, id);
+      }
 
       var trimRow = el('div', 'row');
       trimRow.style.marginTop = '8px';
       var testBtn = el('button', 'btn btn--accent', 'BELUISTEREN');
       testBtn.type = 'button';
-      testBtn.addEventListener('click', function () { E.play(id); self.wake(); });
+      testBtn.addEventListener('click', function () {
+        if (isVideo) { self.closeSheets(); self.openVideo(id); return; }
+        E.play(id); self.wake();
+      });
       var fadeBtn = el('button', 'btn', 'UITFADEN');
       fadeBtn.type = 'button';
       fadeBtn.addEventListener('click', function () { E.fade(id, S.data.fade); });
@@ -1405,6 +1612,7 @@
       var kopieRow = el('div', 'row');
       var kopieBtn = el('button', 'btn btn--accent', 'KOPIE MAKEN');
       kopieBtn.type = 'button';
+      kopieBtn.disabled = isVideo;     // uitsnedes zijn er voor geluid, niet voor beeld
       kopieBtn.addEventListener('click', function () { self.cloneSound(id); });
       kopieRow.appendChild(kopieBtn);
       var isKopie = (S.data.clones || []).some(function (c) { return c.id === id; });

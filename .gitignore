@@ -10,3 +10,4 @@ __pycache__/
 
 # per ongeluk door een testscript aangemaakt
 undefined/
+video/*.webm

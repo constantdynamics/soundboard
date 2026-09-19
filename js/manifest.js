@@ -7314,6 +7314,20 @@ window.SOUNDS = {
         15,
         7
       ]
+    },
+    {
+      "id": "whatsapp-video",
+      "file": "whatsapp-video.mp4",
+      "label": "REAL LIFE",
+      "icon": "play",
+      "color": "#ff6a00",
+      "kind": "video",
+      "gainDb": 16.43,
+      "duration": 29.077,
+      "hash": "19c958cd52",
+      "w": 1108,
+      "h": 834,
+      "stream": true
     }
   ]
 };

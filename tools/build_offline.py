@@ -30,7 +30,8 @@ def audio_blok():
     for e in manifest["sounds"]:
         if e["file"] in gezien:
             continue
-        pad = os.path.join(ROOT, "audio", e["file"])
+        map_ = "video" if e.get("kind") == "video" else "audio"
+        pad = os.path.join(ROOT, map_, e["file"])
         if not os.path.exists(pad):
             print(f"  overgeslagen (niet gevonden): {e['file']}")
             continue

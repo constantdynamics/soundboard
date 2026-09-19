@@ -216,6 +216,9 @@
   add('tv', 'TV', ['tv', 'scherm', 'televisie', 'show'],
     '<rect x="2.4" y="7.4" width="19.2" height="13.2" rx="2.4"/><path d="m7.4 3.4 4.6 4 4.6-4"/><path d="M6.4 12h3.2"/>');
 
+  add('play', 'Video', ['video', 'film', 'afspelen', 'play', 'beeld', 'clip', 'scherm'],
+    '<rect x="2.6" y="4.4" width="18.8" height="15.2" rx="3"/><path d="M10.2 9.4l4.6 2.6-4.6 2.6z"/>');
+
   add('clapper', 'Filmklapper', ['film', 'klapper', 'actie', 'scene', 'bioscoop'],
     '<rect x="2.6" y="4.2" width="18.8" height="4.6" rx="1"/><rect x="2.6" y="8.8" width="18.8" height="11" rx="1.6"/><path d="M7 4.2 5 8.8M12 4.2l-2 4.6M17 4.2l-2 4.6"/>');
 

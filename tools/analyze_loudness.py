@@ -17,6 +17,7 @@ import soundfile as sf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AUDIO_DIR = os.path.join(ROOT, "audio")
+VIDEO_DIR = os.path.join(ROOT, "video")
 OUT = os.path.join(ROOT, "data", "loudness.json")
 
 # Hoeveel de automatische correctie maximaal mag bij- of afregelen.
@@ -114,6 +115,10 @@ def main():
 
     files = sorted(p for p in glob.glob(os.path.join(AUDIO_DIR, "*"))
                    if p.lower().endswith((".mp3", ".ogg", ".wav", ".m4a", ".aac", ".opus")))
+    # Een video heeft ook een geluidsspoor, en dat hoort net zo hard te
+    # klinken als de rest. Meten gaat hetzelfde; ffmpeg haalt het spoor eruit.
+    files += sorted(p for p in glob.glob(os.path.join(VIDEO_DIR, "*"))
+                    if p.lower().endswith((".mp4", ".webm", ".mov", ".m4v")))
     if not files:
         sys.exit("Geen audiobestanden gevonden in audio/")
 
