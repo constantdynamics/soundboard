@@ -1132,13 +1132,24 @@
       }
       if (opts.choices) {
         if (opts.choices.label) body.appendChild(el('p', 'dialog-sub', esc(opts.choices.label)));
+        // een keuze kan een regel uitleg hebben; die staat onder de rij
+        var uitleg = el('p', 'hint');
+        var toonUitleg = function () {
+          var it = opts.choices.items.filter(function (x) { return x.id === keuze; })[0];
+          uitleg.textContent = (it && it.hint) || '';
+          uitleg.hidden = !uitleg.textContent;
+        };
         var rij = this.chipRow(opts.choices.items, keuze, function (it) {
           keuze = it.id;
           Array.prototype.forEach.call(rij.children, function (b, i) {
             b.setAttribute('aria-pressed', String(opts.choices.items[i].id === keuze));
           });
+          toonUitleg();
+          if (opts.choices.onPick) opts.choices.onPick(it, veld);
         });
         body.appendChild(rij);
+        body.appendChild(uitleg);
+        toonUitleg();
       }
       ja.textContent = opts.ok || 'OK';
       ja.className = 'btn ' + (opts.danger ? 'btn--danger' : 'btn--accent');

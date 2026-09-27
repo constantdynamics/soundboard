@@ -98,8 +98,10 @@
       doc.order.forEach(function (id) { if (id) gezien[id] = 1; });
       doc.archived.forEach(function (id) { gezien[id] = 1; });
       (doc.clones || []).forEach(function (c) { if (c && c.id) gezien[c.id] = 1; });
+      // Vroeger stond alles uit het manifest op het ene bord; dat blijft zo.
+      // De sjabloongeluiden (set: 'sjabloon') zijn van later en horen er niet op.
       all.forEach(function (d) {
-        if (!gezien[d.id]) { doc.order.push(d.id); gezien[d.id] = 1; }
+        if (!gezien[d.id] && !d.set) { doc.order.push(d.id); gezien[d.id] = 1; }
       });
       this.create(doc.title, doc);
     },

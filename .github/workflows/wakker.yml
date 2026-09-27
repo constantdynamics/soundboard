@@ -1,0 +1,32 @@
+name: Online opslag wakker houden
+
+# Een Supabase-project op het gratis plan gaat na een week zonder verkeer op
+# pauze, en dan werken de online borden niet meer tot iemand het in het
+# dashboard weer aanzet. Eén klein verzoek per dag voorkomt dat.
+#
+# De sleutel hieronder is de publishable key uit js/config.js. Die staat toch
+# al in de webpagina en kan alleen de openbare functies aanroepen; sb_ping telt
+# alleen hoeveel borden er zijn.
+#
+# Let op: GitHub draait een schema alleen vanaf de standaardbranch, en zet het
+# in een openbare repo stil na 60 dagen zonder activiteit in de repo.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: sb_ping aanroepen
+        run: |
+          curl --fail --silent --show-error --max-time 30 --retry 3 --retry-delay 20 \
+            -X POST 'https://wmdopfocqufsquzvemka.supabase.co/rest/v1/rpc/sb_ping' \
+            -H 'apikey: sb_publishable_0vzeEC0FttISlsEiDaFCnw_N7bjjNym' \
+            -H 'Content-Type: application/json' \
+            -d '{}'
+          echo

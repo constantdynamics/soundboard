@@ -4,7 +4,7 @@
 (function (global) {
   'use strict';
 
-  global.APP_VERSION = '2026.09.27-2';
+  global.APP_VERSION = '2026.09.27-3';
 
   var S = global.Settings, E = global.AudioEngine, UI = global.UI, B = global.Boards;
   var Cloud = global.Cloud, Library = global.Library, Sync = global.Sync;
@@ -388,11 +388,24 @@
     newBoard: function () {
       var keus = [{ id: 'leeg', name: 'LEEG BORD' }];
       if (started && B.current) keus.push({ id: 'kopie', name: 'KOPIE VAN ' + S.data.title });
-      (global.TEMPLATES || []).forEach(function (t) { keus.push({ id: 'sjabloon:' + t.id, name: t.name }); });
+      var sjablonen = global.TEMPLATES || [];
+      sjablonen.forEach(function (t) {
+        keus.push({ id: 'sjabloon:' + t.id, name: t.name, hint: t.uitleg });
+      });
+      var namen = sjablonen.map(function (t) { return t.name; });
       return UI.ask({
         title: 'NIEUW BORD',
         input: { placeholder: 'NAAM, BIJV. BRUILOFT OF AFSCHEID', max: 40, required: true },
-        choices: { label: 'BEGIN MET', items: keus, value: 'leeg' },
+        choices: {
+          label: 'BEGIN MET', items: keus, value: 'leeg',
+          // een sjabloon geeft het bord alvast zijn naam, zolang je zelf niets typte
+          onPick: function (it, veld) {
+            var nu = veld.value.trim().toUpperCase();
+            var vrij = !nu || namen.indexOf(nu) >= 0;
+            if (/^sjabloon:/.test(it.id)) { if (vrij) veld.value = it.name; }
+            else if (namen.indexOf(nu) >= 0) veld.value = '';
+          }
+        },
         ok: 'MAKEN'
       }).then(function (r) {
         if (!r) return;

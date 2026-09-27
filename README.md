@@ -24,9 +24,9 @@ geluidsinstellingen. Bijvoorbeeld SPEECH, AFSCHEID en TEAMUITJE naast elkaar.
   het wisselen gewoon staan.
 - **Een geluid, meerdere borden.** Hetzelfde geluid kan op meerdere borden
   staan, elk met een eigen naam, kleur, volume en uitsnede.
-- **Nieuw bord:** leeg, of als kopie van het bord dat open staat. Een leeg
-  bord opent met het slotje los; tik een leeg vak aan om er een geluid neer te
-  zetten.
+- **Nieuw bord:** leeg, als kopie van het bord dat open staat, of vanuit een
+  werk-sjabloon (zie hieronder). Een leeg bord opent met het slotje los; tik
+  een leeg vak aan om er een geluid neer te zetten.
 - **Uiterlijk overnemen.** In de instellingen staat UITERLIJK OVERNEMEN VAN:
   dat neemt lettertype, palet, knopstijl, maten en kolommen van een ander bord
   over, en laat de knoppen, de timer en het geluid met rust.
@@ -38,6 +38,50 @@ het bord SPEECH, precies zoals het was. De oude opslag (`bfss:v1`) blijft als
 reservekopie in de browser staan. Een toestel dat de soundboard nog nooit
 heeft gezien begint leeg, met + NIEUW BORD en de uitleg hoe je een gekregen
 link opent.
+
+## Werk-sjablonen
+
+Bij **+ NIEUW BORD** staan onder BEGIN MET drie sjablonen. Elk geeft een bord
+met passende knoppen, een eigen uiterlijk en een timer. Het bord krijgt alvast
+de naam van het sjabloon, tenzij je zelf al iets had getypt.
+
+| sjabloon | knoppen | uiterlijk | timer |
+|---|---|---|---|
+| **PRESENTATIE** | GONG, BEL, AFTELLEN, TIKTAK, WHOOSH, TADAA, GOED, ZOEMER, APPLAUS | ICE, glas | 15 min |
+| **AFSCHEID** | TROMGEROFFEL, FANFARE, TADAA, PROOST, SPEELDOOS, APPLAUS, RIMSHOT, KREKELS, BEL | SUNSET, gloed | 5 min |
+| **TEAMUITJE** | FLUIT, AFTELLEN, TIKTAK, GOED, FOUT, ZOEMER, TROMGEROFFEL, TOETER, APPLAUS, KREKELS, FANFARE, WHOOSH | ARCADE, vol | 10 min |
+
+Daarna is het een gewoon bord: knoppen erbij, eraf, andere namen en een ander
+uiterlijk kunnen allemaal.
+
+### Zelfgemaakte geluiden
+
+De 18 geluiden van de sjablonen zijn niet opgenomen maar uitgerekend, uit
+sinussen en ruis, door `tools/make_template_sounds.py`. Er zit dus niets van
+een ander in, en ze mogen overal voor gebruikt en gedeeld worden. Ze staan in
+de site zelf (onder **STANDAARD** bij het toevoegen), dus ze werken voor
+iedereen, ook zonder persoonlijke link en zonder netwerk.
+
+Een paar voorbeelden van hoe ze gemaakt zijn:
+
+- **GONG:** elf deeltonen die niet op één grondtoon liggen, en de hogere
+  bouwen langzaam op na de slag. Dat geeft het aanzwellen van een echte gong.
+- **APPLAUS:** 42 klappers, elk met een eigen tempo, plek in het stereobeeld
+  en klankkleur, in een ruimte.
+- **FANFARE** en **TADAA:** koper-achtige tonen waarvan de boventonen
+  meegroeien met de sterkte, zoals bij een trompet.
+- **TIKTAK:** tien seconden tikken en een belletje aan het eind, als denktijd
+  bij een quizvraag.
+
+Het script is deterministisch: opnieuw draaien geeft precies dezelfde
+bestanden. Het meet daarna de luidheid en werkt het manifest bij. De geluiden
+krijgen `"set": "sjabloon"` mee, zodat ze bij de overstap van het oude bord
+niet ongevraagd op SPEECH belanden.
+
+```bash
+python3 tools/make_template_sounds.py
+python3 tools/make_template_sounds.py --wav /tmp/wav   # ook als wav, om te beluisteren
+```
 
 ## Online: je borden overal, en delen
 
@@ -145,6 +189,12 @@ privé-geluiden van de beheerder.
   staan en geeft alleen toegang tot die functies.
 - **Offline:** online geluiden gaan net als die van de site zelf in de cache
   van de service worker, ook met Range-verzoeken voor lange nummers.
+- **Wakker houden:** een Supabase-project op het gratis plan gaat na een week
+  zonder verkeer op pauze. `.github/workflows/wakker.yml` doet daarom elke
+  ochtend één klein verzoek (`sb_ping`). GitHub draait zo'n schema alleen vanaf
+  de standaardbranch, en zet het in een openbare repo stil na 60 dagen zonder
+  activiteit. Onder **Actions** zie je of het loopt, en daar kun je het ook met
+  de hand starten.
 
 ## Wat het doet
 
@@ -577,6 +627,24 @@ Gemeten waarden:
 | PIAN DI CASCINA 1 | 10.6s | -17.83 | +1.83 dB |
 | 11 STEDEN | 13.5s | -17.11 | +1.11 dB |
 | REAL LIFE (video) | 29.1s | -16.16 (na loudnorm in het bestand) | +0.16 dB |
+| AFTELLEN (sjabloon) | 4.3s | -7.5 | -8.50 dB |
+| APPLAUS (sjabloon) | 5.2s | -14.68 | -1.32 dB |
+| BEL (sjabloon) | 3.2s | -12.33 | -3.67 dB |
+| FANFARE (sjabloon) | 3.8s | -13.52 | -2.48 dB |
+| FLUIT (sjabloon) | 2.0s | -5.63 | -10.37 dB |
+| FOUT (sjabloon) | 3.7s | -10.59 | -5.41 dB |
+| GOED (sjabloon) | 1.8s | -12.94 | -3.06 dB |
+| GONG (sjabloon) | 7.9s | -15.66 | -0.34 dB |
+| KREKELS (sjabloon) | 6.4s | -14.28 | -1.72 dB |
+| PROOST (sjabloon) | 2.4s | -12.31 | -3.69 dB |
+| RIMSHOT (sjabloon) | 2.7s | -17.41 | +1.41 dB |
+| SPEELDOOS (sjabloon) | 6.1s | -12.19 | -3.81 dB |
+| TADAA (sjabloon) | 3.0s | -13.11 | -2.89 dB |
+| TIKTAK (sjabloon) | 11.1s | -19.72 | +3.72 dB |
+| TOETER (sjabloon) | 2.5s | -14.5 | -1.50 dB |
+| TROMGEROFFEL (sjabloon) | 6.0s | -19.36 | +3.36 dB |
+| WHOOSH (sjabloon) | 1.6s | -16.62 | +0.62 dB |
+| ZOEMER (sjabloon) | 1.6s | -12.69 | -3.31 dB |
 
 ## Opbouw
 
@@ -589,6 +657,7 @@ video/                  de video's (mp4, h264 + aac)
 js/icons.js             iconenbibliotheek (inline SVG) + suggesties op naam
 js/settings.js          presets en de regels van één bord, export/import
 js/boards.js            welke borden er zijn en waar ze bewaard worden
+js/templates.js         de werk-sjablonen PRESENTATIE, AFSCHEID en TEAMUITJE
 js/config.js            adres en publieke sleutel van de online opslag
 js/cloud.js             praten met Supabase: functies, uploaden, persoonlijke link
 js/library.js           de bibliotheek: standaard, eigen en gedeelde geluiden
@@ -605,7 +674,8 @@ sw.js                   service worker voor offline gebruik
 data/sounds.json        de knoppen: naam, icoon, kleur, gemeten gain
 data/loudness.json      ruwe meetresultaten
 supabase/soundboard.sql het schema van de online opslag
-tools/                  de meet- en manifestscripts
+tools/                  de meet- en manifestscripts, en de maker van de sjabloongeluiden
+.github/workflows/      publiceren op GitHub Pages, en de online opslag wakker houden
 ```
 
 Geen build-stap: het is gewone HTML, CSS en JavaScript. De enige code van
