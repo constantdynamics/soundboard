@@ -122,7 +122,7 @@
 
       // kopieën staan in het bord zelf, niet in de lijst met geluiden
       var clones = (S.data.clones || []).filter(function (c) {
-        return c && c.id && (c.file || c.url);
+        return c && c.id && (c.file || c.url || c.of);
       });
       S.data.clones = clones;
       this.defs = B.defsFor(S.data, this.all);
@@ -157,12 +157,29 @@
       this.renderBoard();
       this.paintTimer();
       this.paintBoardTitle();
+      this.paintMode();
+      if (this.onBoard) this.onBoard();
     },
 
     /** De naam van het bord bovenin, en in de titel van het tabblad. */
     paintBoardTitle: function () {
       $('board-title').textContent = S.data.title;
       document.title = S.data.title + ' — The Big Fat Soundboard';
+    },
+
+    /** Mag je dit bord aanpassen? Niet met alleen een SPEEL-link. */
+    canEdit: function () {
+      return global.Sync ? global.Sync.canEdit(B.current) : true;
+    },
+
+    /** Een bord dat je alleen mag spelen: geen slotje, en niets dat je
+        per ongeluk kunt verschuiven. */
+    paintMode: function () {
+      var mag = this.canEdit();
+      $('btn-edit').hidden = !mag;
+      $('board-empty-add').hidden = !mag;
+      document.body.classList.toggle('is-alleen-spelen', !mag);
+      if (!mag && this.editing) this.toggleEdit(false);
     },
 
     /* ---- samengestelde definitie (manifest + eigen aanpassingen) -- */
@@ -323,8 +340,10 @@
         if (ev.button > 0) return;
         if (self.editing) { self.startDrag(ev, wrap, pad); return; }
 
-        // Lang ingedrukt houden opent het bewerkscherm, ook met het slotje dicht.
+        // Lang ingedrukt houden opent het bewerkscherm, ook met het slotje
+        // dicht. Niet op een bord dat je alleen mag spelen.
         held = false;
+        if (!self.canEdit()) return;
         var x0 = ev.clientX, y0 = ev.clientY;
         pad.classList.add('is-holding');
         holdTimer = setTimeout(function () {
@@ -488,7 +507,7 @@
         speech per ongeluk starten is een stuk vervelender dan een geluidje. */
     askVideo: function (id) {
       this.vidVraag = id;
-      $('vid-ask-title').textContent = esc(this.get(id).label) + ' AFSPELEN?';
+      $('vid-ask-title').textContent = this.get(id).label + ' AFSPELEN?';
       $('vid-ask').hidden = false;
     },
 
@@ -744,20 +763,21 @@
       var n = 2, nieuwId;
       do { nieuwId = basis + '--' + n; n++; } while (this.byId[nieuwId]);
 
+      // Een kopie wijst naar zijn bron. De opname, de gemeten correctie en
+      // de golfvorm komen daarvandaan; naam, icoon en kleur zijn van hemzelf.
       var kopie = {
         id: nieuwId,
+        of: bron.of || bron.id,
         label: (this.get(id).label + ' ' + (n - 1)).slice(0, 40),
-        icon: this.get(id).icon, color: this.get(id).color,
-        gainDb: bron.gainDb, duration: bron.duration,
-        peaks: bron.peaks
-        // bewust geen stream: een fragment hoort direct te klinken
+        icon: this.get(id).icon, color: this.get(id).color
       };
-      // een kopie wijst naar dezelfde opname: een bestand op de site of een
-      // bestand in de online opslag
-      ['file', 'url', 'hash'].forEach(function (k) { if (bron[k]) kopie[k] = bron[k]; });
+      var perId = {};
+      this.all.concat(this.defs).forEach(function (d) { perId[d.id] = d; });
+      var def = B.cloneDef(kopie, perId);
+      if (!def) return;
       S.data.clones.push(kopie);
-      this.byId[nieuwId] = kopie;
-      this.defs.push(kopie);
+      this.byId[nieuwId] = def;
+      this.defs.push(def);
 
       var plek = S.data.order.indexOf(id);
       if (plek >= 0) S.data.order.splice(plek + 1, 0, nieuwId);
@@ -765,7 +785,7 @@
       S.save();
       this.renderBoard();
 
-      E.loadOne(kopie).then(function () {
+      E.loadOne(def).then(function () {
         self.pushEdit(nieuwId);
         self.openPadSheet(nieuwId);
       });
@@ -1045,7 +1065,12 @@
     },
 
     toggleEdit: function (force) {
-      this.editing = force === undefined ? !this.editing : force;
+      var aan = force === undefined ? !this.editing : force;
+      if (aan && !this.canEdit()) {
+        this.toast('DIT BORD KUN JE ALLEEN SPELEN');
+        return;
+      }
+      this.editing = aan;
       $('btn-edit').setAttribute('aria-pressed', String(this.editing));
       $('btn-edit-label').textContent = this.editing ? 'LOS' : 'VAST';
       $('edit-hint').hidden = !this.editing;
@@ -1088,12 +1113,18 @@
       var ja = $('dialog-yes'), nee = $('dialog-no');
       $('dialog-title').textContent = opts.title || '';
       body.innerHTML = '';
-      if (opts.text) body.appendChild(el('p', 'dialog-text', opts.text));
+      if (opts.text) {
+        // als tekst, niet als html: er kunnen namen van anderen in staan
+        var p = el('p', 'dialog-text');
+        p.textContent = opts.text;
+        body.appendChild(p);
+      }
 
       var veld = null, keuze = opts.choices ? opts.choices.value : null;
       if (opts.input) {
-        veld = el('input', 'text-input');
+        veld = el('input', 'text-input' + (opts.input.raw ? ' is-link' : ''));
         veld.type = 'text';
+        if (opts.input.raw) veld.readOnly = true;
         veld.value = opts.input.value || '';
         veld.placeholder = opts.input.placeholder || '';
         veld.maxLength = opts.input.max || 40;
@@ -1229,6 +1260,13 @@
          voor een speech en niet ergens onderin een lijst */
       this.renderOffline(body);
       this.renderPackage(body);
+
+      /* een bord dat je alleen mag spelen: niets om aan te draaien */
+      if (!this.canEdit()) {
+        if (this.renderPlayOnly) this.renderPlayOnly(body);
+        if (this.renderAccount) this.renderAccount(body);
+        return;
+      }
 
       /* naam van het bord */
       var naam = el('input', 'text-input');
@@ -1489,6 +1527,9 @@
       body.appendChild(this.field('ARCHIEF',
         arch.length ? arch.length + (arch.length === 1 ? ' KNOP' : ' KNOPPEN') : 'LEEG', archBox));
 
+      /* wie je bent, je geluiden, uitnodigen */
+      if (this.renderAccount) this.renderAccount(body);
+
       /* versie */
       var verRow = el('div', 'row');
       var refresh = el('button', 'btn', 'NIEUWSTE VERSIE OPHALEN');
@@ -1562,9 +1603,11 @@
     buildPackage: function (metLange, onStatus) {
       var self = this;
       var bronnen = [], scripts = [];
-      // alles van dit bord, inclusief de bronnen van kopieën
-      var nodig = {};
-      (S.data.clones || []).forEach(function (c) { nodig[E.srcKey(c)] = true; });
+      // alles van dit bord, inclusief de bronnen van kopieën (een kopie
+      // wijst naar zijn bron; de opname staat in zijn uitgewerkte versie)
+      var nodig = {}, kloon = {};
+      (S.data.clones || []).forEach(function (c) { if (c && c.id) kloon[c.id] = true; });
+      this.defs.forEach(function (d) { if (kloon[d.id]) nodig[E.srcKey(d)] = true; });
       var gezien = {};
       var lijst = this.defs.filter(function (d) {
         var k = E.srcKey(d);
@@ -1673,9 +1716,18 @@
           html = html.replace('<link rel="manifest" href="manifest.webmanifest">', '');
           html = html.replace('<link rel="icon" href="favicon.svg" type="image/svg+xml">', '');
 
+          // Geluiden uit de online opslag staan niet in het manifest: hun
+          // gegevens gaan apart mee, ook die van de bron van een kopie.
+          var ingepakt = {};
+          lijst.forEach(function (d) { ingepakt[E.srcKey(d)] = true; });
+          var online = (self.all || []).filter(function (d) {
+            return d && d.url && !d.builtin && ingepakt[E.srcKey(d)];
+          });
           var blok = '<script>window.NO_SW = true; window.NOODPAKKET = true;<\/script>\n' +
             '<script>window.PRESET_SETTINGS = ' +
               JSON.stringify(S.data).replace(/</g, '\\u003c') + ';<\/script>\n' +
+            '<script>window.PRESET_DEFS = ' +
+              JSON.stringify(online).replace(/</g, '\\u003c') + ';<\/script>\n' +
             '<script>window.AUDIO_DATA = {\n' + stukken.join(',\n') + '\n};<\/script>\n';
           scripts.forEach(function (p) {
             html = html.replace('<script src="' + p + '"><\/script>', '');
@@ -2008,6 +2060,9 @@
         'geluid wordt maar één keer ingeladen, hoeveel kopieën je ook maakt.'));
       body.appendChild(kopieField);
 
+      /* privé of gedeeld, als het jouw geluid in de bibliotheek is */
+      if (this.renderPadOnline) this.renderPadOnline(body, id);
+
       var archRow = el('div', 'row');
       var archBtn = el('button', 'btn btn--danger', 'NAAR ARCHIEF');
       archBtn.type = 'button';
@@ -2334,142 +2389,15 @@
       this.openSheet('boards-sheet');
     },
 
-    renderBoardsSheet: function () {
-      var self = this, body = $('boards-body');
-      body.innerHTML = '';
-
-      var lijst = el('div', 'board-list');
-      B.list.forEach(function (b) {
-        var nu = b.key === B.current;
-        var n = nu ? S.data.order.filter(Boolean).length : B.count(b.key);
-        var rij = el('button', 'board-row' + (nu ? ' is-current' : ''),
-          '<span class="board-row-name">' + esc(b.title) + '</span>' +
-          '<span class="board-row-sub">' + n + (n === 1 ? ' KNOP' : ' KNOPPEN') +
-          (nu ? ' · NU OPEN' : '') + '</span>');
-        rij.type = 'button';
-        rij.setAttribute('aria-current', String(nu));
-        rij.addEventListener('click', function () {
-          if (nu) { self.closeSheets(); return; }
-          global.App.switchTo(b.key);
-        });
-        lijst.appendChild(rij);
-      });
-      body.appendChild(this.field('WISSELEN', B.list.length + (B.list.length === 1 ? ' BORD' : ' BORDEN'), lijst));
-
-      var nieuw = el('button', 'btn btn--accent', '+ NIEUW BORD');
-      nieuw.type = 'button';
-      nieuw.style.width = '100%';
-      nieuw.addEventListener('click', function () { global.App.newBoard(); });
-      var nieuwVeld = this.field('', '', nieuw);
-      nieuwVeld.appendChild(el('p', 'hint',
-        'Een bord per situatie of per persoon: elk bord heeft zijn eigen knoppen, ' +
-        'uiterlijk, timer en geluid. Wisselen duurt een paar tellen, want de ' +
-        'geluiden van het nieuwe bord worden eerst ingeladen. Wat er speelt faadt weg.'));
-      body.appendChild(nieuwVeld);
-
-      var rij = el('div', 'row');
-      var hernoem = el('button', 'btn', 'NAAM WIJZIGEN');
-      hernoem.type = 'button';
-      hernoem.addEventListener('click', function () {
-        self.ask({
-          title: 'NAAM VAN DIT BORD',
-          input: { value: S.data.title, max: 40, required: true },
-          ok: 'OPSLAAN'
-        }).then(function (r) {
-          if (!r) return;
-          S.set('title', r.value.toUpperCase());
-          self.paintBoardTitle();
-          self.renderBoardsSheet();
-        });
-      });
-      var dup = el('button', 'btn', 'DUPLICEREN');
-      dup.type = 'button';
-      dup.addEventListener('click', function () {
-        self.ask({
-          title: 'KOPIE VAN ' + S.data.title,
-          text: 'Een tweede bord met dezelfde knoppen en instellingen, dat je daarna los kunt aanpassen.',
-          input: { value: (S.data.title + ' 2').slice(0, 40), max: 40, required: true },
-          ok: 'KOPIE MAKEN'
-        }).then(function (r) {
-          if (!r) return;
-          var key = B.duplicate(B.current, r.value.toUpperCase());
-          if (key) global.App.switchTo(key);
-        });
-      });
-      var weg = el('button', 'btn btn--danger', 'VERWIJDEREN');
-      weg.type = 'button';
-      weg.addEventListener('click', function () {
-        self.ask({
-          title: S.data.title + ' VERWIJDEREN?',
-          text: 'Het bord verdwijnt van dit toestel, met de indeling en alles wat je ' +
-                'erop hebt ingesteld. De geluiden zelf blijven bestaan.',
-          ok: 'VERWIJDEREN', danger: true
-        }).then(function (r) {
-          if (r) global.App.deleteBoard(B.current);
-        });
-      });
-      rij.appendChild(hernoem); rij.appendChild(dup);
-      var dit = this.field('DIT BORD — ' + S.data.title, '', rij);
-      var rij2 = el('div', 'row');
-      rij2.style.marginTop = '8px';
-      rij2.appendChild(weg);
-      dit.appendChild(rij2);
-      body.appendChild(dit);
-    },
-
     /* ---- een geluid op het bord zetten ------------------------------- */
 
     /** Opent de lijst met geluiden. `slot` is de lege plek waar het moet
         komen; zonder plek komt het op de eerste vrije. */
     openAddSheet: function (slot) {
+      this.addMode = 'lijst';
       this.addSlot = (slot === undefined) ? null : slot;
       this.renderAddSheet();
       this.openSheet('add-sheet');
-    },
-
-    renderAddSheet: function () {
-      var self = this, body = $('add-body');
-      body.innerHTML = '';
-      $('add-title').textContent = this.addSlot !== null
-        ? 'GELUID OP PLEK ' + (this.addSlot + 1) : 'GELUID TOEVOEGEN';
-
-      var zoek = el('input', 'text-input');
-      zoek.type = 'search';
-      zoek.placeholder = 'ZOEK EEN GELUID…';
-      body.appendChild(this.field('ZOEKEN', '', zoek));
-
-      var opBord = {};
-      S.data.order.forEach(function (id) { if (id) opBord[id] = 'op'; });
-      (S.data.archived || []).forEach(function (id) { opBord[id] = 'archief'; });
-
-      var lijst = el('div', 'snd-list');
-      var rijen = [];
-      this.all.forEach(function (d) {
-        var waar = opBord[d.id];
-        var rij = self.soundRow(d, waar === 'op' ? 'STAAT AL OP DIT BORD'
-                                 : waar === 'archief' ? 'IN HET ARCHIEF — TERUGZETTEN' : '');
-        if (waar === 'op') rij.classList.add('is-on');
-        rij.addEventListener('click', function () {
-          if (waar === 'op') {
-            if (self.addSlot === null) { self.toast('STAAT AL OP DIT BORD'); return; }
-          }
-          self.addToBoard(d, self.addSlot);
-          self.closeSheets();
-          self.toast(d.label + ' STAAT OP HET BORD');
-        });
-        rijen.push({ el: rij, tekst: (d.label + ' ' + (d.file || '') + ' ' + (d.icon || '')).toLowerCase() });
-        lijst.appendChild(rij);
-      });
-      if (!rijen.length) lijst.appendChild(el('p', 'hint', 'Er zijn nog geen geluiden.'));
-      body.appendChild(this.field('GELUIDEN', this.all.length + '', lijst));
-      body.appendChild(el('p', 'hint',
-        'Een geluid kan op meerdere borden staan, elk met een eigen naam, kleur, ' +
-        'volume en uitsnede. Wat je hier aanpast geldt alleen voor dit bord.'));
-
-      zoek.addEventListener('input', function () {
-        var q = this.value.trim().toLowerCase();
-        rijen.forEach(function (r) { r.el.hidden = !!q && r.tekst.indexOf(q) < 0; });
-      });
     },
 
     /** Een regel in een lijst met geluiden: icoon, naam en duur. */
@@ -2490,4 +2418,6 @@
 
   global.UI = UI;
   global.UI.fmt = fmt;
+  // voor js/ui-online.js en js/upload.js
+  global.UI.h = { el: el, esc: esc, hexToRgb: hexToRgb, clamp: clamp, trimTail: trimTail };
 })(window);

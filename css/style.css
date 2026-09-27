@@ -1021,6 +1021,67 @@ body.has-np .board { padding-bottom: calc(var(--dock-h) + var(--safe-b) + 96px);
 }
 .toast.is-weg { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
+/* een link in een tekstveld: gewoon zoals hij is, niet in hoofdletters */
+.text-input.is-link { text-transform: none; font-size: 11px; letter-spacing: .02em; }
+.dialog-text { white-space: pre-line; }
+
+/* ---------- wijzigingen van een ander ------------------------------ */
+.remote-bar {
+  position: fixed; z-index: 35;
+  top: calc(var(--safe-t) + 64px); left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 24px);
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 7px 7px 14px; border-radius: 999px;
+  background: rgba(12, 2, 24, .97);
+  border: 1.5px solid #ffd400;
+  box-shadow: 0 0 20px rgba(255, 212, 0, .35), 0 8px 24px rgba(0, 0, 0, .7);
+  animation: sheet-up .25s cubic-bezier(.2, .9, .3, 1);
+}
+.remote-bar > span {
+  font-size: 9.5px; letter-spacing: .14em; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.remote-bar #remote-yes {
+  flex: none; padding: 7px 12px; border-radius: 999px;
+  border: 1.5px solid #ffd400; background: rgba(255, 212, 0, .16);
+  color: #fff; font-size: 9.5px; letter-spacing: .14em;
+}
+.remote-bar #remote-no {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  font-size: 18px; line-height: 1; color: var(--ink-faint);
+}
+
+/* ---------- delen ----------------------------------------------------- */
+.share { display: flex; flex-direction: column; gap: 14px; }
+.share-link {
+  padding: 12px; border-radius: 12px;
+  border: 1.5px solid var(--line); background: rgba(255, 255, 255, .04);
+}
+.share-link .hint { margin: 6px 0 10px; }
+.share-kop { font-size: 11px; letter-spacing: .18em; color: #fff; }
+
+.board-row.is-gone, .splash-board.is-gone { opacity: .55; }
+
+/* ---------- mijn geluiden ------------------------------------------- */
+.bieb-row {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--line);
+}
+.bieb-row .snd-row { cursor: default; }
+.bieb-acties { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* ---------- uploaden --------------------------------------------------- */
+.upload-bestand {
+  font-size: 10px; letter-spacing: .06em; color: var(--ink-dim);
+  margin-bottom: 14px; overflow-wrap: anywhere;
+}
+.upload-voortgang { margin: 4px 0 14px; }
+.upload-fout {
+  margin: 0 0 14px; padding: 12px 14px; border-radius: 12px;
+  border: 1.5px solid #ff2b4a; background: rgba(255, 43, 74, .12);
+  color: #ffd2da; font-size: 11px; line-height: 1.6; letter-spacing: .03em;
+}
+
 /* ---------- groter scherm ---------------------------------------- */
 @media (min-width: 720px) {
   :root { --dock-h: 78px; }
