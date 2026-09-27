@@ -1,11 +1,41 @@
-# THE BIG FAT SPEECH SOUNDBOARD
+# THE BIG FAT SOUNDBOARD
 
-Een soundboard voor tijdens een speech. Dark synthwave, elke knop een eigen
-neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
+Soundboards voor tijdens een speech, en voor elk ander moment waarop je op
+het juiste moment het juiste geluid wilt. Dark synthwave, elke knop een eigen
+neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen. Eén bord per
+situatie of per persoon.
 
 **Live:** https://constantdynamics.github.io/soundboard/
 
 ---
+
+## Meerdere borden
+
+Een bord is een eigen set knoppen met een eigen indeling, uiterlijk, timer en
+geluidsinstellingen. Bijvoorbeeld SPEECH, AFSCHEID en TEAMUITJE naast elkaar.
+
+- **Kiezen bij het starten.** Het startscherm toont je borden; het laatst
+  gebruikte staat bovenaan en wordt alvast ingeladen. Eén tik start het.
+- **Wisselen tussendoor.** Tik bovenin op de naam van het bord. Wisselen duurt
+  een paar tellen: wat er speelt faadt weg en de geluiden van het nieuwe bord
+  worden ingeladen. De timer loopt door.
+- **Alleen wat nodig is in het geheugen.** Alleen de geluiden van het open
+  bord worden gedecodeerd. Staat een geluid op twee borden, dan blijft het bij
+  het wisselen gewoon staan.
+- **Een geluid, meerdere borden.** Hetzelfde geluid kan op meerdere borden
+  staan, elk met een eigen naam, kleur, volume en uitsnede.
+- **Nieuw bord:** leeg, of als kopie van het bord dat open staat. Een leeg
+  bord opent met het slotje los; tik een leeg vak aan om er een geluid neer te
+  zetten.
+- **Uiterlijk overnemen.** In de instellingen staat UITERLIJK OVERNEMEN VAN:
+  dat neemt lettertype, palet, knopstijl, maten en kolommen van een ander bord
+  over, en laat de knoppen, de timer en het geluid met rust.
+- **Van het bord halen.** NAAR ARCHIEF bewaart een knop met alles erop en
+  eraan; HELEMAAL WEG haalt hem van dit bord. Het geluid zelf blijft bestaan.
+
+Het bord van voor er meerdere borden waren wordt bij de eerste start vanzelf
+het bord SPEECH, precies zoals het was. De oude opslag (`bfss:v1`) blijft als
+reservekopie in de browser staan.
 
 ## Wat het doet
 
@@ -449,10 +479,11 @@ css/fonts.css           de lettertypes, uit fonts/ in plaats van bij Google
 fonts/                  de woff2-bestanden (latijnse uitsnede, 126 kB totaal)
 video/                  de video's (mp4, h264 + aac)
 js/icons.js             iconenbibliotheek (inline SVG) + suggesties op naam
-js/settings.js          presets, opslag in de browser, export/import
-js/audio.js             Web Audio: vooraf laden, afspelen, faden, limiter
-js/ui.js                knoppenraster, timer, panelen, slepen
-js/app.js               opstarten en ontgrendelen van het geluid
+js/settings.js          presets en de regels van één bord, export/import
+js/boards.js            welke borden er zijn en waar ze bewaard worden
+js/audio.js             Web Audio: inladen per bord, afspelen, faden, limiter
+js/ui.js                knoppenraster, timer, panelen, slepen, borden
+js/app.js               opstarten, ontgrendelen van het geluid, wisselen
 sw.js                   service worker voor offline gebruik
 data/sounds.json        de knoppen: naam, icoon, kleur, gemeten gain
 data/loudness.json      ruwe meetresultaten

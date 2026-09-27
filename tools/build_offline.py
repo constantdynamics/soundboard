@@ -13,8 +13,11 @@ Gebruik:  python3 tools/build_offline.py [uitvoer.html]
 import base64, json, mimetypes, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRIPTS = ["js/manifest.js", "js/icons.js", "js/settings.js",
-           "js/audio.js", "js/ui.js", "js/app.js"]
+
+
+def scripts(html):
+    """De scripts van de pagina, in de volgorde waarin index.html ze laadt."""
+    return re.findall(r'<script src="([^"]+)"></script>', html)
 
 
 def lees(pad):
@@ -49,9 +52,10 @@ def audio_blok():
 
 def main():
     uit = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        ROOT, "The Big Fat Speech Soundboard (noodpakket).html")
+        ROOT, "The Big Fat Soundboard (noodpakket).html")
 
     html = lees("index.html")
+    SCRIPTS = scripts(html)
 
     # stijl erin
     html = html.replace(
@@ -75,7 +79,7 @@ def main():
     # scripts erin, met de audio ervoor
     # geen service worker: die kan niet vanaf een los bestand, en is hier ook
     # nergens voor nodig - alles zit al in de pagina
-    blok = "<script>window.NO_SW = true;</script>\n"
+    blok = "<script>window.NO_SW = true; window.NOODPAKKET = true;</script>\n"
     bord = os.environ.get("BORD")
     if bord and os.path.exists(bord):
         with open(bord, encoding="utf-8") as f:
@@ -87,7 +91,10 @@ def main():
         print(f"  bord ingebakken uit {os.path.basename(bord)}")
     blok += "<script>\n" + audio_blok() + "</script>\n"
     for pad in SCRIPTS:
-        blok += "<script>\n" + lees(pad) + "\n</script>\n"
+        # Een sluittag ergens in de code (in een tekst of een opmerking) zou
+        # het script daar afbreken; dus die onschadelijk maken.
+        code = re.sub(r"</(script)", r"<\\/\1", lees(pad), flags=re.I)
+        blok += "<script>\n" + code + "\n</script>\n"
         if pad == "js/manifest.js":
             blok += ("<script>window.SOUNDS.sounds = window.SOUNDS.sounds"
                      ".filter(function (d) { return !!window.AUDIO_DATA[d.file]; });"
@@ -97,8 +104,8 @@ def main():
         html = html.replace(f'<script src="{pad}"></script>', "")
     html = html.replace("</body>", blok + "</body>")
 
-    html = html.replace("<title>The Big Fat Speech Soundboard</title>",
-                        "<title>The Big Fat Speech Soundboard — noodpakket</title>")
+    html = re.sub(r"<title>[^<]*</title>",
+                  "<title>The Big Fat Soundboard — noodpakket</title>", html)
 
     with open(uit, "w", encoding="utf-8") as f:
         f.write(html)

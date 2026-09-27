@@ -1,9 +1,11 @@
 /* ------------------------------------------------------------------
-   THE BIG FAT SPEECH SOUNDBOARD — audio-engine
+   THE BIG FAT SOUNDBOARD — audio-engine
 
    Uitgangspunten:
-   - Alles wordt vooraf opgehaald en gedecodeerd naar een AudioBuffer.
-     Een knop indrukken kost daarna nul netwerk- en decodeertijd.
+   - Alles van het bord dat open staat wordt vooraf opgehaald en
+     gedecodeerd naar een AudioBuffer. Een knop indrukken kost daarna nul
+     netwerk- en decodeertijd. Wissel je van bord, dan gaat eruit wat het
+     nieuwe bord niet gebruikt en komt erbij wat nog ontbrak.
    - Geluiden stapelen: dezelfde knop nogmaals indrukken start een nieuwe
      stem vanaf 0 terwijl de vorige doorspeelt.
    - Luidheid is vooraf gemeten (EBU R128, zie tools/analyze_loudness.py).
@@ -42,9 +44,10 @@
     ctx: null,
     ready: false,
     buffers: {},        // id -> AudioBuffer (korte geluiden)
+    bufBy: {},          // bron -> AudioBuffer, gedeeld door kopieën van één opname
+    rauw: {},           // bron -> Promise<ArrayBuffer>, opgehaald maar nog niet gedecodeerd
     streams: {},        // id -> { el, source, gain } (lange nummers)
     videos: {},         // id -> { el, source, gain, duck } (video's)
-    raw: {},            // id -> ArrayBuffer (voor het ontgrendelen)
     defs: {},           // id -> manifest-entry
     gains: {},          // id -> GainNode
     trim: {},           // id -> gebruikersafwijking in dB
@@ -64,51 +67,55 @@
     srcFor: function (d, base) {
       var bak = global.AUDIO_DATA;
       if (bak) {
-        var ingebakken = bak[d.file] || bak[d.id];
+        var ingebakken = (d.url && bak[d.url]) || bak[d.file] || bak[d.id];
         if (ingebakken) return ingebakken;
       }
+      if (d.url) return d.url;          // staat online; de url verandert nooit
       var map = base || (d.kind === 'video' ? 'video/' : (this.base || 'audio/'));
       return map + d.file + (d.hash ? '?v=' + d.hash : '');
+    },
+
+    /** Welke opname hoort bij deze knop? Kopieën delen hem, en dus ook de
+        bytes en de gedecodeerde buffer. */
+    srcKey: function (d) { return (d && (d.url || d.file)) || ''; },
+
+    /** Haalt de bytes van een opname op, één keer per opname. */
+    haalRauw: function (d) {
+      var self = this, k = this.srcKey(d);
+      if (!this.rauw[k]) {
+        this.rauw[k] = fetch(this.srcFor(d), { cache: 'force-cache' })
+          .then(function (r) {
+            if (!r.ok) throw new Error(r.status + ' ' + (d.file || d.url));
+            return r.arrayBuffer();
+          })
+          .catch(function (err) {
+            delete self.rauw[k];          // opnieuw proberen moet echt opnieuw
+            throw err;
+          });
+      }
+      return this.rauw[k];
     },
 
     /* ---- stap 1: bytes binnenhalen (mag vóór de eerste tik) ---- */
     prefetch: function (defs, base) {
       var self = this;
-      this.failed = [];
-      this.defs = {};
-      defs.forEach(function (d) { self.defs[d.id] = d; });
-
-      this.base = base;
-      // meerdere knoppen kunnen hetzelfde bestand gebruiken (kopieën); dan
-      // halen we het bestand één keer op en delen we het resultaat
+      if (base) this.base = base;
+      this.klaar = defs;                  // dit laadt unlock() straks in
       var gezien = {};
       var haal = defs.filter(function (d) {
-        if (d.stream || gezien[d.file]) return false;
-        gezien[d.file] = d.id;
+        var k = self.srcKey(d);
+        if (d.stream || d.kind === 'video' || gezien[k] || self.bufBy[k]) return false;
+        gezien[k] = 1;
         return true;
       });
-      this.eersteVan = gezien;
       var total = haal.length || 1, done = 0;
       return Promise.all(haal.map(function (d) {
-        var url = self.srcFor(d, base);
-        return fetch(url, { cache: 'force-cache' })
-          .then(function (r) {
-            if (!r.ok) throw new Error(r.status + ' ' + d.file);
-            return r.arrayBuffer();
-          })
-          .then(function (buf) {
-            self.raw[d.id] = buf;
-            self.rawVan = self.rawVan || {};
-            self.rawVan[d.file] = d.id;
-            done++;
-            if (self.onprogress) self.onprogress(done / total * 0.65, d.label);
-          })
-          .catch(function (err) {
-            console.error('Ophalen mislukt:', d.file, err);
-            if (self.failed.indexOf(d.id) < 0) self.failed.push(d.id);
-            done++;
-            if (self.onprogress) self.onprogress(done / total * 0.65, d.label);
-          });
+        return self.haalRauw(d).catch(function (err) {
+          console.error('Ophalen mislukt:', d.file || d.url, err);
+        }).then(function () {
+          done++;
+          if (self.onprogress) self.onprogress(done / total * 0.65, d.label);
+        });
       }));
     },
 
@@ -139,46 +146,89 @@
       var self = this;
       this.openContext();
       var resume = this.ctx.state === 'suspended' ? this.ctx.resume() : Promise.resolve();
+      return resume.then(function () { return self.load(self.klaar || [], 0.65); });
+    },
 
-      return resume.then(function () {
-        var ids = Object.keys(self.raw), total = ids.length, done = 0;
-        // de knoppen die hetzelfde bestand delen, krijgen straks dezelfde buffer
-        var delers = {};
-        Object.keys(self.defs).forEach(function (id) {
-          var d = self.defs[id];
-          if (d.stream) return;
-          (delers[d.file] = delers[d.file] || []).push(id);
-        });
-        return Promise.all(ids.map(function (id) {
-          return self.decode(self.raw[id]).then(function (buf) {
-            (delers[self.defs[id].file] || [id]).forEach(function (deler) {
-              self.buffers[deler] = buf;          // zelfde geluid, eigen knop
-              var k = self.failed.indexOf(deler);
-              if (k >= 0) self.failed.splice(k, 1);
-              if (self.gains[deler]) return;
-              var g = self.ctx.createGain();
-              g.gain.value = self.gainFor(deler);
-              self.gains[deler] = g;
-              g.connect(self.fxFor(deler).hp);
-              self.voices[deler] = [];
+    /** Zet precies deze geluiden klaar: wat er al is blijft, wat niet meer
+        nodig is gaat eruit, wat ontbreekt wordt opgehaald en gedecodeerd.
+        Zo gaat wisselen van bord zo snel als het kan en houdt een telefoon
+        nooit de geluiden van alle borden tegelijk in zijn geheugen.
+        `vanaf` is waar de voortgangsbalk begint (na het vooraf ophalen). */
+    load: function (defs, vanaf) {
+      var self = this;
+      this.openContext();
+      vanaf = vanaf || 0;
+      var nieuw = {};
+      defs.forEach(function (d) { nieuw[d.id] = d; });
+
+      // 1. wat dit bord niet gebruikt gaat eruit
+      Object.keys(this.defs).forEach(function (id) { if (!nieuw[id]) self.dropSound(id); });
+      this.failed = this.failed.filter(function (id) { return nieuw[id]; });
+
+      // 2. volume en bewerking per knop horen bij het bord, niet bij het
+      //    geluid; het bord zet ze zo meteen zelf weer terug
+      this.trim = {};
+      this.edit = {};
+      defs.forEach(function (d) { self.defs[d.id] = d; });
+      Object.keys(this.fx).forEach(function (id) { self.applyEdit(id); });
+      Object.keys(this.gains).forEach(function (id) {
+        try { self.gains[id].gain.value = self.gainFor(id); } catch (e) {}
+      });
+
+      // 3. wat nog ontbreekt: per opname één keer ophalen en decoderen
+      var groepen = {};
+      defs.forEach(function (d) {
+        if (d.kind === 'video' || d.stream || self.buffers[d.id]) return;
+        var k = self.srcKey(d);
+        (groepen[k] = groepen[k] || []).push(d.id);
+      });
+      var bronnen = Object.keys(groepen), total = bronnen.length || 1, done = 0;
+      function stap(label) {
+        done++;
+        if (self.onprogress) self.onprogress(vanaf + (1 - vanaf) * done / total, label);
+      }
+
+      return Promise.all(bronnen.map(function (k) {
+        var ids = groepen[k], d = self.defs[ids[0]];
+        var klaar = self.bufBy[k] ? Promise.resolve(self.bufBy[k])
+          : self.haalRauw(d).then(function (b) { return self.decode(b); }).then(function (buf) {
+              self.bufBy[k] = buf;
+              delete self.rauw[k];        // de ruwe bytes mogen weg na het decoderen
+              return buf;
             });
-            done++;
-            if (self.onprogress) self.onprogress(0.65 + done / total * 0.35, self.defs[id].label);
-          }).catch(function (err) {
-            console.error('Decoderen mislukt:', id, err);
-            if (self.failed.indexOf(id) < 0) self.failed.push(id);
-            done++;
-            if (self.onprogress) self.onprogress(0.65 + done / total * 0.35, id);
-          });
-        }));
-      }).then(function () {
-        self.raw = {};              // ruwe bytes mogen weg na het decoderen
-        Object.keys(self.defs).forEach(function (id) {
-          var d = self.defs[id];
-          if (d.stream && d.kind !== 'video') self.openStream(id);
+        return klaar.then(function (buf) {
+          ids.forEach(function (id) { self.koppel(id, buf); });
+          stap(d.label);
+        }).catch(function (err) {
+          console.error('Laden mislukt:', d.file || d.url, err);
+          ids.forEach(function (id) { if (self.failed.indexOf(id) < 0) self.failed.push(id); });
+          stap(d.label);
         });
+      })).then(function () {
+        defs.forEach(function (d) {
+          if (d.stream && d.kind !== 'video') self.openStream(d.id);
+        });
+        // vooraf opgehaald voor een bord dat het toch niet werd: weg ermee
+        var nodig = {};
+        defs.forEach(function (d) { nodig[self.srcKey(d)] = 1; });
+        Object.keys(self.rauw).forEach(function (k) { if (!nodig[k]) delete self.rauw[k]; });
         self.ready = true;
       });
+    },
+
+    /** Hangt een gedecodeerde buffer aan een knop, met zijn eigen gain en
+        filters. Kopieën van één opname krijgen dezelfde buffer. */
+    koppel: function (id, buf) {
+      this.buffers[id] = buf;
+      var k = this.failed.indexOf(id);
+      if (k >= 0) this.failed.splice(k, 1);
+      if (!this.gains[id]) {
+        var g = this.ctx.createGain();
+        g.gain.value = this.gainFor(id);
+        this.gains[id] = g;
+        g.connect(this.fxFor(id).hp);
+      }
+      if (!this.voices[id]) this.voices[id] = [];
     },
 
     /* Lange nummers worden niet vooraf gedecodeerd maar afgespeeld vanuit een
@@ -648,44 +698,48 @@
         uit één opname samen niet meer geheugen kosten dan één. */
     loadOne: function (def) {
       var self = this;
+      this.openContext();
       this.defs[def.id] = def;
+      if (def.kind === 'video') return Promise.resolve(true);
+      if (def.stream) { this.openStream(def.id); this.ready = true; return Promise.resolve(true); }
       if (this.buffers[def.id]) return Promise.resolve(true);
 
-      function koppel(buf) {
-        self.buffers[def.id] = buf;
-        if (!self.gains[def.id]) {
-          var g = self.ctx.createGain();
-          g.gain.value = self.gainFor(def.id);
-          self.gains[def.id] = g;
-          g.connect(self.fxFor(def.id).hp);
-        }
-        self.voices[def.id] = [];
+      var k = this.srcKey(def);
+      var klaar = this.bufBy[k] ? Promise.resolve(this.bufBy[k])
+        : this.haalRauw(def).then(function (b) { return self.decode(b); }).then(function (buf) {
+            self.bufBy[k] = buf;
+            delete self.rauw[k];
+            return buf;
+          });
+      return klaar.then(function (buf) {
+        self.koppel(def.id, buf);
+        self.ready = true;
         return true;
-      }
-
-      var zelfde = null;
-      Object.keys(this.buffers).forEach(function (id) {
-        if (!zelfde && self.defs[id] && self.defs[id].file === def.file) zelfde = self.buffers[id];
+      }).catch(function (err) {
+        console.error('Laden mislukt:', def.id, err);
+        if (self.failed.indexOf(def.id) < 0) self.failed.push(def.id);
+        return false;
       });
-      if (zelfde) return Promise.resolve(koppel(zelfde));
-
-      return fetch(this.srcFor(def))
-        .then(function (r) {
-          if (!r.ok) throw new Error(r.status);
-          return r.arrayBuffer();
-        })
-        .then(function (b) { return self.decode(b); })
-        .then(koppel)
-        .catch(function (err) {
-          console.error('Kopie laden mislukt:', def.id, err);
-          if (self.failed.indexOf(def.id) < 0) self.failed.push(def.id);
-          return false;
-        });
     },
 
-    /** Haalt een kopie weer helemaal weg. */
+    /** Haalt een geluid helemaal uit de engine: de buffer, de filters, een
+        lang nummer of de geluidsketen van een video. Wordt de opname door
+        geen enkele knop meer gebruikt, dan mag ook de buffer weg. */
     dropSound: function (id) {
+      var def = this.defs[id];
       this.fade(id, 0.1);
+      var st = this.streams[id];
+      if (st) {
+        try { st.el.pause(); st.el.removeAttribute('src'); st.el.load(); } catch (e) {}
+        try { st.source.disconnect(); st.duck.disconnect(); st.gain.disconnect(); } catch (e) {}
+        delete this.streams[id];
+        if (this.lastStreamId === id) this.lastStreamId = null;
+      }
+      var vd = this.videos[id];
+      if (vd) {
+        try { if (vd.source) vd.source.disconnect(); if (vd.gain) vd.gain.disconnect(); } catch (e) {}
+        delete this.videos[id];
+      }
       delete this.buffers[id];
       delete this.defs[id];
       delete this.voices[id];
@@ -694,6 +748,13 @@
       try { if (this.fx[id]) { this.fx[id].hp.disconnect(); this.fx[id].pres.disconnect(); } } catch (e) {}
       delete this.fx[id];
       delete this.edit[id];
+      delete this.trim[id];
+
+      var k = this.srcKey(def), self = this;
+      if (k && !Object.keys(this.defs).some(function (i) { return self.srcKey(self.defs[i]) === k; })) {
+        delete this.bufBy[k];
+        delete this.rauw[k];
+      }
     },
 
     /* ---- ducken -------------------------------------------------- */

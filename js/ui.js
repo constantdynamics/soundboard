@@ -1,10 +1,10 @@
 /* ------------------------------------------------------------------
-   THE BIG FAT SPEECH SOUNDBOARD — interface
+   THE BIG FAT SOUNDBOARD — interface
    ------------------------------------------------------------------ */
 (function (global) {
   'use strict';
 
-  var S = global.Settings, E = global.AudioEngine, ICONS = global.ICONS;
+  var S = global.Settings, E = global.AudioEngine, ICONS = global.ICONS, B = global.Boards;
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, html) {
@@ -29,6 +29,10 @@
 
   /* Hoe lang je een knop moet vasthouden om hem te bewerken. */
   var HOLD_MS = 450;
+
+  /* De panelen die van onderen (of opzij) inschuiven; er staat er steeds
+     hooguit één open. */
+  var SHEETS = ['settings-panel', 'pad-sheet', 'icon-sheet', 'boards-sheet', 'add-sheet'];
 
   /** Lege plekken achteraan hebben geen zin; die halen we weg. */
   function trimTail(order) {
@@ -89,47 +93,76 @@
      UI
      ================================================================ */
   var UI = {
-    defs: [],          // manifest zoals ingeladen
+    all: [],           // alle geluiden die er zijn, om aan een bord toe te voegen
+    defs: [],          // de geluiden van dit bord, kopieën meegeteld
     byId: {},
     editing: false,
     looping: false,
     Timer: Timer,
 
-    init: function (defs) {
+    /** Eenmalig: de bediening vastmaken en het eerste bord neerzetten. */
+    init: function (all) {
+      this.all = all || [];
+      this.bindChrome();
+      this.bindVideo();
+      this.setBoard();
+    },
+
+    /** Zet het bord in beeld dat nu in S.data staat. De engine heeft zijn
+        geluiden dan al klaarstaan (zie App.open in app.js). */
+    setBoard: function () {
       var self = this;
-      this.manifest = defs;
-      // kopieën staan in de instellingen, niet in het manifest
+      this.closeSheets();
+      if (this.editing) {                 // een ander bord begint op slot
+        this.editing = false;
+        $('btn-edit').setAttribute('aria-pressed', 'false');
+        $('btn-edit-label').textContent = 'VAST';
+        $('edit-hint').hidden = true;
+      }
+
+      // kopieën staan in het bord zelf, niet in de lijst met geluiden
       var clones = (S.data.clones || []).filter(function (c) {
-        return c && c.id && c.file && defs.some(function (d) { return d.file === c.file; });
+        return c && c.id && (c.file || c.url);
       });
       S.data.clones = clones;
-      this.defs = defs.concat(clones);
+      this.defs = B.defsFor(S.data, this.all);
       this.byId = {};
       this.defs.forEach(function (d) { self.byId[d.id] = d; });
 
       // De volgorde is een rooster van plekken: elke plek bevat een geluid
-      // of is leeg (null). Onbekende of dubbele namen worden een lege plek,
-      // zodat de indeling heel blijft als er een geluid verdwijnt.
-      var archived = (S.data.archived || []).filter(function (id) { return self.byId[id]; });
-      S.data.archived = archived;
+      // of is leeg (null). Een dubbele naam wordt een lege plek. Een geluid
+      // dat (even) niet te vinden is blijft wél staan, als grijze knop:
+      // anders zou één keer opstarten zonder netwerk het bord uitdunnen.
       var seen = {};
-      archived.forEach(function (id) { seen[id] = 1; });
-      var order = (S.data.order || []).map(function (id) {
-        if (id && self.byId[id] && !seen[id]) { seen[id] = 1; return id; }
-        return null;
+      var archived = (S.data.archived || []).filter(function (id) {
+        if (!id || seen[id]) return false;
+        seen[id] = 1;
+        return true;
       });
-      defs.forEach(function (d) { if (!seen[d.id]) { order.push(d.id); seen[d.id] = 1; } });
-      S.data.order = trimTail(order);
+      S.data.archived = archived;
+      S.data.order = trimTail((S.data.order || []).map(function (id) {
+        if (id && !seen[id]) { seen[id] = 1; return id; }
+        return null;
+      }));
 
       Object.keys(S.data.sounds).forEach(function (sid) {
-        if (self.byId[sid]) self.pushEdit(sid);
+        if (!self.byId[sid]) return;
+        self.pushEdit(sid);
+        if (S.data.sounds[sid].trimDb) E.setTrim(sid, S.data.sounds[sid].trimDb);
       });
+      E.setMaster(S.data.masterVolume);
 
-      this.bindChrome();
-      this.initVideo();
+      this.syncVideos();
       this.applyTheme();
       this.renderBoard();
       this.paintTimer();
+      this.paintBoardTitle();
+    },
+
+    /** De naam van het bord bovenin, en in de titel van het tabblad. */
+    paintBoardTitle: function () {
+      $('board-title').textContent = S.data.title;
+      document.title = S.data.title + ' — The Big Fat Soundboard';
     },
 
     /* ---- samengestelde definitie (manifest + eigen aanpassingen) -- */
@@ -140,12 +173,14 @@
       return {
         id: id,
         file: base.file,
+        url: base.url,
         label: over.label !== undefined ? over.label : (base.label || id),
         icon: over.icon || base.icon || 'wave',
         color: over.color || pal[idx % pal.length] || base.color || '#ff2d95',
         trimDb: over.trimDb || 0,
         gainDb: base.gainDb || 0,
-        duration: base.duration || 0
+        duration: base.duration || 0,
+        missing: !this.byId[id]
       };
     },
 
@@ -203,7 +238,7 @@
       var board = $('board'), self = this;
       var order = S.data.order;
       board.innerHTML = '';
-      $('board-empty').hidden = order.filter(Boolean).length > 0;
+      $('board-empty').hidden = this.editing || order.filter(Boolean).length > 0;
 
       order.forEach(function (id, i) {
         board.appendChild(id ? self.padEl(self.get(id), i) : self.slotEl(i));
@@ -219,15 +254,20 @@
       }
     },
 
-    /** Een lege plek in het rooster. */
+    /** Een lege plek in het rooster. Met het slotje open: aantikken om er
+        een geluid neer te zetten. */
     slotEl: function (index) {
+      var self = this;
       var slot = el('div', 'pad-slot', '<span class="pad-slot-box"></span>');
       slot.dataset.slot = index;
+      slot.addEventListener('click', function () {
+        if (self.editing) self.openAddSheet(index);
+      });
       return slot;
     },
 
     padEl: function (d, index) {
-      var wrap = el('div', 'pad-wrap');
+      var wrap = el('div', 'pad-wrap' + (d.missing ? ' is-missing' : ''));
       wrap.dataset.id = d.id;
       if ((this.byId[d.id] || {}).kind === 'video') wrap.dataset.kind = 'video';
       if (index !== undefined) wrap.dataset.slot = index;
@@ -316,9 +356,13 @@
 
     trigger: function (id, pad) {
       var def = this.byId[id] || {};
+      if (!this.byId[id]) { this.toast('DIT GELUID IS NIET TE VINDEN'); return; }
       if (def.kind === 'video') { this.askVideo(id, pad); return; }
       var v = E.play(id);
-      if (!v) return;
+      if (!v) {
+        if (E.failed.indexOf(id) >= 0) this.toast('DIT GELUID KON NIET WORDEN GELADEN');
+        return;
+      }
       if (E.streams[id]) this.npDismissed = false;
       pad.classList.remove('hit');
       void pad.offsetWidth;
@@ -332,25 +376,39 @@
 
     /* ---- video ----------------------------------------------------- */
 
-    /** Zet voor elke video een <video> klaar in de speler: verborgen, maar
-        wel alvast aan het inladen. Het element blijft daar staan - een
-        <video> verplaatsen in de pagina onderbreekt het afspelen. */
-    initVideo: function () {
+    /** Zet voor elke video van dit bord een <video> klaar in de speler:
+        verborgen, maar wel alvast aan het inladen. Het element blijft daar
+        staan - een <video> verplaatsen in de pagina onderbreekt het
+        afspelen. Video's van een ander bord gaan weg; de engine heeft hun
+        geluidsketen dan al losgemaakt, en element en keten horen bij
+        elkaar: een element kan maar één keer aan de keten. */
+    syncVideos: function () {
       var self = this;
       var stage = $('vid-stage');
       if (!stage) return;
       this.vidEls = this.vidEls || {};
+      Object.keys(this.vidEls).forEach(function (id) {
+        if ((self.byId[id] || {}).kind === 'video' && E.defs[id]) return;
+        var oud = self.vidEls[id];
+        try { oud.pause(); oud.removeAttribute('src'); oud.load(); } catch (e) {}
+        if (oud.parentNode) oud.parentNode.removeChild(oud);
+        delete self.vidEls[id];
+      });
       this.defs.forEach(function (d) {
         if (d.kind !== 'video' || self.vidEls[d.id]) return;
         var el = document.createElement('video');
-        el.src = E.srcFor(d);
+        var bron = E.srcFor(d);
+        // Een bestand van de site zelf (of als data-url in de pagina) krijgt
+        // bewust geen crossOrigin: die vlag maakt er een cors-verzoek van dat
+        // op sommige browsers juist misgaat. Een video uit de online opslag
+        // heeft hem wel nodig, anders levert hij aan de geluidsketen stilte.
+        // Hij moet erop staan vóór de bron, anders is het verzoek al weg.
+        if (d.url && !/^data:/.test(bron)) el.crossOrigin = 'anonymous';
+        el.src = bron;
         el.preload = 'auto';
         el.playsInline = true;
         el.setAttribute('playsinline', '');
         el.setAttribute('webkit-playsinline', '');
-        // bewust geen crossOrigin: het bestand komt van dezelfde site (of zit
-        // als data-url in de pagina), en die vlag maakt er een cors-verzoek
-        // van dat op sommige browsers juist misgaat
         el.hidden = true;
         stage.appendChild(el);
         self.vidEls[d.id] = el;
@@ -371,7 +429,6 @@
           el.addEventListener(naam, function () { self.vidBezig(false); });
         });
       });
-      this.bindVideo();
     },
 
     bindVideo: function () {
@@ -683,18 +740,21 @@
       var self = this;
       var bron = this.byId[id];
       if (!bron) return;
-      var basis = bron.file.replace(/\.[a-z0-9]+$/i, '');
+      var basis = String(bron.file || bron.id).replace(/\.[a-z0-9]+$/i, '').replace(/--\d+$/, '');
       var n = 2, nieuwId;
       do { nieuwId = basis + '--' + n; n++; } while (this.byId[nieuwId]);
 
       var kopie = {
-        id: nieuwId, file: bron.file,
+        id: nieuwId,
         label: (this.get(id).label + ' ' + (n - 1)).slice(0, 40),
         icon: this.get(id).icon, color: this.get(id).color,
         gainDb: bron.gainDb, duration: bron.duration,
-        peaks: bron.peaks, hash: bron.hash
+        peaks: bron.peaks
         // bewust geen stream: een fragment hoort direct te klinken
       };
+      // een kopie wijst naar dezelfde opname: een bestand op de site of een
+      // bestand in de online opslag
+      ['file', 'url', 'hash'].forEach(function (k) { if (bron[k]) kopie[k] = bron[k]; });
       S.data.clones.push(kopie);
       this.byId[nieuwId] = kopie;
       this.defs.push(kopie);
@@ -750,6 +810,64 @@
       else S.data.order.push(id);
       S.save();
       this.renderBoard();
+    },
+
+    /** Haalt een knop helemaal van dit bord: van zijn plek, uit het archief
+        en met wat je er op dit bord aan had ingesteld. Het geluid zelf
+        blijft bestaan en kan er later gewoon weer op. */
+    removeFromBoard: function (id) {
+      E.fade(id, 0.25);
+      if ((S.data.clones || []).some(function (c) { return c.id === id; })) {
+        S.data.clones = S.data.clones.filter(function (c) { return c.id !== id; });
+      }
+      var i = S.data.order.indexOf(id);
+      if (i >= 0) S.data.order[i] = null;
+      S.data.order = trimTail(S.data.order);
+      S.data.archived = (S.data.archived || []).filter(function (a) { return a !== id; });
+      delete S.data.sounds[id];
+      // een opname die door geen enkele knop meer gebruikt wordt, hoeft
+      // ook niet meer in het geheugen
+      var nodig = B.defsFor(S.data, this.all).some(function (d) { return d.id === id; });
+      if (!nodig) {
+        E.dropSound(id);
+        delete this.byId[id];
+        this.defs = this.defs.filter(function (d) { return d.id !== id; });
+      }
+      S.save();
+      this.closeSheets();
+      this.renderBoard();
+    },
+
+    /** Zet een geluid op dit bord: op de gekozen lege plek, anders op de
+        eerste vrije. Staat het er al (of in het archief), dan springt het
+        naar die plek. */
+    addToBoard: function (def, slot) {
+      var self = this, id = def.id;
+      var o = S.data.order;
+      var oud = o.indexOf(id);
+      if (oud >= 0) o[oud] = null;
+      S.data.archived = (S.data.archived || []).filter(function (a) { return a !== id; });
+      if (slot === undefined || slot === null || slot < 0) slot = o.indexOf(null);
+      if (slot < 0) slot = o.length;
+      while (o.length <= slot) o.push(null);
+      if (o[slot] && o[slot] !== id) {
+        // bezet: dan schuift wat er stond een plek op
+        o.splice(slot, 0, id);
+      } else {
+        o[slot] = id;
+      }
+      S.data.order = trimTail(o);
+      if (!this.byId[id]) {
+        this.defs.push(def);
+        this.byId[id] = def;
+      }
+      S.save();
+      this.renderBoard();
+      return E.loadOne(def).then(function () {
+        self.pushEdit(id);
+        if (def.kind === 'video') self.syncVideos();
+        self.paint();
+      });
     },
 
     /** Schuift een lege plek in het rooster op deze positie. */
@@ -905,17 +1023,24 @@
       this.bindNowPlaying();
       $('btn-edit').addEventListener('click', function () { self.toggleEdit(); });
       $('btn-settings').addEventListener('click', function () { self.openSettings(); });
+      $('board-btn').addEventListener('click', function () { self.openBoardsSheet(); });
+      $('edit-add').addEventListener('click', function () { self.openAddSheet(); });
+      $('board-empty-add').addEventListener('click', function () {
+        self.toggleEdit(true);
+        self.openAddSheet();
+      });
 
       $('timer-toggle').addEventListener('click', function () { Timer.toggle(); self.wake(); });
       $('timer-reset').addEventListener('click', function () { Timer.reset(); });
 
       $('scrim').addEventListener('click', function () { self.closeSheets(); });
-      $('settings-close').addEventListener('click', function () { self.closeSheets(); });
-      $('pad-close').addEventListener('click', function () { self.closeSheets(); });
-      $('icon-close').addEventListener('click', function () { self.closeSheets(); });
+      SHEETS.forEach(function (n) {
+        var dicht = document.querySelector('#' + n + ' .sheet-close');
+        if (dicht) dicht.addEventListener('click', function () { self.closeSheets(); });
+      });
 
       document.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Escape') self.closeSheets();
+        if (ev.key === 'Escape' && $('dialog').hidden) self.closeSheets();
       });
     },
 
@@ -930,15 +1055,84 @@
 
     /* ---- panelen -------------------------------------------------- */
     openSheet: function (which) {
-      ['settings-panel', 'pad-sheet', 'icon-sheet'].forEach(function (n) { $(n).hidden = true; });
+      SHEETS.forEach(function (n) { $(n).hidden = true; });
       $('scrim').hidden = false;
       $(which).hidden = false;
     },
 
     closeSheets: function () {
-      ['settings-panel', 'pad-sheet', 'icon-sheet'].forEach(function (n) { $(n).hidden = true; });
+      SHEETS.forEach(function (n) { $(n).hidden = true; });
       $('scrim').hidden = true;
       this.padSheetId = null;
+    },
+
+    /** Een korte melding onderin, die vanzelf weer weggaat. */
+    toast: function (tekst, ms) {
+      var t = $('toast');
+      if (!t) return;
+      t.textContent = tekst;
+      t.hidden = false;
+      t.classList.remove('is-weg');
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(function () {
+        t.classList.add('is-weg');
+        setTimeout(function () { t.hidden = true; }, 300);
+      }, ms || 2400);
+    },
+
+    /** Een klein venster met een vraag. Kan een tekstveld en een rij keuzes
+        hebben. Geeft een belofte met { value, choice }, of null bij
+        annuleren. Werkt ook op het startscherm, vóór de rest er is. */
+    ask: function (opts) {
+      var box = $('dialog'), body = $('dialog-body');
+      var ja = $('dialog-yes'), nee = $('dialog-no');
+      $('dialog-title').textContent = opts.title || '';
+      body.innerHTML = '';
+      if (opts.text) body.appendChild(el('p', 'dialog-text', opts.text));
+
+      var veld = null, keuze = opts.choices ? opts.choices.value : null;
+      if (opts.input) {
+        veld = el('input', 'text-input');
+        veld.type = 'text';
+        veld.value = opts.input.value || '';
+        veld.placeholder = opts.input.placeholder || '';
+        veld.maxLength = opts.input.max || 40;
+        body.appendChild(veld);
+      }
+      if (opts.choices) {
+        if (opts.choices.label) body.appendChild(el('p', 'dialog-sub', esc(opts.choices.label)));
+        var rij = this.chipRow(opts.choices.items, keuze, function (it) {
+          keuze = it.id;
+          Array.prototype.forEach.call(rij.children, function (b, i) {
+            b.setAttribute('aria-pressed', String(opts.choices.items[i].id === keuze));
+          });
+        });
+        body.appendChild(rij);
+      }
+      ja.textContent = opts.ok || 'OK';
+      ja.className = 'btn ' + (opts.danger ? 'btn--danger' : 'btn--accent');
+      nee.textContent = opts.cancel || 'ANNULEREN';
+      nee.hidden = opts.cancel === false;
+      box.hidden = false;
+      if (veld) setTimeout(function () { veld.focus(); veld.select(); }, 60);
+
+      return new Promise(function (resolve) {
+        function klaar(ok) {
+          box.hidden = true;
+          ja.onclick = nee.onclick = null;
+          if (veld) veld.onkeydown = null;
+          resolve(ok ? { value: veld ? veld.value.trim() : '', choice: keuze } : null);
+        }
+        ja.onclick = function () {
+          if (veld && opts.input.required && !veld.value.trim()) { veld.focus(); return; }
+          klaar(true);
+        };
+        nee.onclick = function () { klaar(false); };
+        if (veld) veld.onkeydown = function (ev) {
+          if (ev.key === 'Enter') ja.onclick();
+          if (ev.key === 'Escape') klaar(false);
+        };
+      });
     },
 
     /* ---- instellingen --------------------------------------------- */
@@ -1029,11 +1223,49 @@
     renderSettings: function () {
       var self = this, body = $('settings-body'), d = S.data;
       body.innerHTML = '';
+      $('settings-title').textContent = 'INSTELLINGEN — ' + d.title;
 
       /* offline klaarzetten - staat bovenaan, want dit check je vlak
          voor een speech en niet ergens onderin een lijst */
       this.renderOffline(body);
       this.renderPackage(body);
+
+      /* naam van het bord */
+      var naam = el('input', 'text-input');
+      naam.type = 'text'; naam.value = d.title; naam.maxLength = 40;
+      naam.addEventListener('change', function () {
+        var v = this.value.trim().toUpperCase();
+        if (!v) { this.value = d.title; return; }
+        S.set('title', v);
+        self.paintBoardTitle();
+        $('settings-title').textContent = 'INSTELLINGEN — ' + v;
+      });
+      var naamVeld = this.field('NAAM VAN DIT BORD', '', naam);
+      naamVeld.appendChild(el('p', 'hint',
+        'Alles hieronder geldt alleen voor dit bord. Een ander bord heeft zijn ' +
+        'eigen knoppen, uiterlijk, timer en geluid. Wisselen doe je door bovenin ' +
+        'op de naam te tikken.'));
+      body.appendChild(naamVeld);
+
+      /* uiterlijk van een ander bord overnemen */
+      var anderen = B.list.filter(function (b) { return b.key !== B.current; });
+      if (anderen.length) {
+        var overRij = this.chipRow(anderen.map(function (b) {
+          return { id: b.key, name: b.title };
+        }), null, function (it) {
+          var bron = B.doc(it.id);
+          if (!bron) return;
+          S.copyLook(bron);
+          self.applyTheme(); self.renderBoard(); self.renderSettings();
+          self.toast('UITERLIJK VAN ' + it.name + ' OVERGENOMEN');
+        });
+        var overVeld = this.field('UITERLIJK OVERNEMEN VAN', '', overRij);
+        overVeld.appendChild(el('p', 'hint',
+          'Neemt lettertype, tekstgrootte, palet, knopstijl, rand, afronding, ' +
+          'tussenruimte, knopgrootte, kolommen en labels over. Je knoppen, ' +
+          'timer en geluidsinstellingen blijven zoals ze zijn.'));
+        body.appendChild(overVeld);
+      }
 
       /* lettertype */
       body.appendChild(this.field('LETTERTYPE', '', this.chipRow(S.FONTS, d.font, function (it) {
@@ -1195,27 +1427,33 @@
       impBtn.type = 'button';
       impBtn.addEventListener('click', function () { self.importProfile(); });
       row.appendChild(expBtn); row.appendChild(impBtn);
-      var profField = this.field('PROFIEL', '', row);
-      var resetBtn = el('button', 'btn btn--danger', 'ALLES TERUG NAAR STANDAARD');
+      var profField = this.field('DIT BORD ALS BESTAND', '', row);
+      var resetBtn = el('button', 'btn btn--danger', 'INSTELLINGEN TERUG NAAR STANDAARD');
       resetBtn.type = 'button';
       resetBtn.style.marginTop = '8px';
       resetBtn.addEventListener('click', function () {
-        if (!global.confirm('Alle eigen instellingen wissen en terug naar de standaard?')) return;
+        if (!global.confirm('Uiterlijk, timer en geluid van dit bord terug naar de standaard? ' +
+                            'De knoppen blijven staan.')) return;
         S.reset();
-        self.init(self.defs);
+        E.setMaster(S.data.masterVolume);
+        E.setDuck(S.data.duck);
+        self.applyTheme();
+        self.renderBoard();
+        self.paintTimer();
         self.renderSettings();
       });
       profField.appendChild(resetBtn);
       profField.appendChild(el('p', 'hint',
-        'Je instellingen worden automatisch in deze browser bewaard. Exporteren ' +
-        'geeft je een klein JSON-bestand met je hele bord erin: als reservekopie, ' +
-        'om op een ander apparaat te gebruiken, of om het bord te delen zodat ' +
-        'iemand er iets aan kan verbeteren. Wil je het bord mét de geluiden ' +
-        'meesturen, gebruik dan het noodpakket hierboven.'));
+        'Dit bord wordt automatisch in deze browser bewaard. Exporteren geeft je ' +
+        'een klein JSON-bestand met het hele bord erin: als reservekopie, om op ' +
+        'een ander apparaat te gebruiken, of om het te delen zodat iemand er iets ' +
+        'aan kan verbeteren. Importeren zet zo’n bestand over dit bord heen. ' +
+        'Wil je het bord mét de geluiden meesturen, gebruik dan het noodpakket ' +
+        'hierboven. TERUG NAAR STANDAARD laat de knoppen staan.'));
       body.appendChild(profField);
 
       /* archief */
-      var arch = (S.data.archived || []).filter(function (id) { return self.byId[id]; });
+      var arch = (S.data.archived || []).slice();
       var archBox = el('div');
       if (!arch.length) {
         archBox.appendChild(el('p', 'hint',
@@ -1233,7 +1471,18 @@
           back.type = 'button';
           back.style.flex = 'none';
           back.addEventListener('click', function () { self.unarchive(id); self.renderSettings(); });
+          var weg = el('button', 'btn btn--danger', 'WEG');
+          weg.type = 'button';
+          weg.style.flex = 'none';
+          weg.setAttribute('aria-label', 'Helemaal van dit bord: ' + d.label);
+          weg.addEventListener('click', function () {
+            if (!global.confirm(d.label + ' helemaal van dit bord halen? Het geluid zelf ' +
+                                'blijft bestaan en kan er later weer op.')) return;
+            self.removeFromBoard(id);
+            self.openSettings();
+          });
           row.appendChild(back);
+          row.appendChild(weg);
           archBox.appendChild(row);
         });
       }
@@ -1262,9 +1511,10 @@
         doet en je dat moet kunnen doorgeven zonder een console te openen. */
     diagnose: function () {
       var box = el('pre', 'diag');
-      var video = this.manifest.filter(function (d) { return d.kind === 'video'; });
+      var video = this.defs.filter(function (d) { return d.kind === 'video'; });
       var regels = [
         'versie      ' + (global.APP_VERSION || '?'),
+        'bord        ' + S.data.title + ' (' + B.list.length + ' op dit toestel)',
         'knoppen     ' + this.defs.length + ' (' + video.length + ' video)',
         'pagina      ' + (document.getElementById('vid-stage') ? 'met speler' : 'ZONDER SPELER - verouderd'),
         'geluid      ' + (E.ctx ? E.ctx.state : 'nog niet open') +
@@ -1275,7 +1525,7 @@
       video.forEach(function (d) {
         var el2 = (UI.vidEls || {})[d.id];
         var vd = E.videos[d.id];
-        var kan = el2 ? (el2.canPlayType(d.file.slice(-4) === 'webm' ? 'video/webm' : 'video/mp4') || 'nee') : '?';
+        var kan = el2 ? (el2.canPlayType(E.srcKey(d).slice(-4) === 'webm' ? 'video/webm' : 'video/mp4') || 'nee') : '?';
         regels.push('video ' + d.id);
         regels.push('  element   ' + (el2 ? 'ja, staat ' + el2.readyState + '/4 klaar' : 'ONTBREEKT'));
         regels.push('  formaat   ' + kan);
@@ -1311,22 +1561,22 @@
         altijd actueel en hoeft er niets van buitenaf te komen. */
     buildPackage: function (metLange, onStatus) {
       var self = this;
-      var bronnen = ['index.html', 'css/style.css', 'js/manifest.js', 'js/icons.js',
-                     'js/settings.js', 'js/audio.js', 'js/ui.js', 'js/app.js'];
-      // alles waar een knop naar verwijst, inclusief de bronnen van kopieën
+      var bronnen = [], scripts = [];
+      // alles van dit bord, inclusief de bronnen van kopieën
       var nodig = {};
-      (S.data.clones || []).forEach(function (c) { nodig[c.file] = true; });
+      (S.data.clones || []).forEach(function (c) { nodig[E.srcKey(c)] = true; });
       var gezien = {};
-      var lijst = this.manifest.filter(function (d) {
-        if (gezien[d.file]) return false;
+      var lijst = this.defs.filter(function (d) {
+        var k = E.srcKey(d);
+        if (!k || gezien[k] || !self.byId[d.id]) return false;
         // video gaat altijd mee: het beeld is juist waar je het pakket voor
         // wilt hebben als er ter plekke geen netwerk blijkt te zijn
-        if (!(metLange || d.kind === 'video' || !d.stream || nodig[d.file])) return false;
-        gezien[d.file] = true;
+        if (!(metLange || d.kind === 'video' || !d.stream || nodig[k])) return false;
+        gezien[k] = true;
         return true;
       });
-      var totaal = bronnen.length + lijst.length + 1, klaar = 0;
-      function stap(wat) { klaar++; if (onStatus) onStatus(klaar, totaal, wat); }
+      var totaal = lijst.length + 12, klaar = 0;
+      function stap(wat) { klaar++; if (onStatus) onStatus(klaar, Math.max(totaal, klaar), wat); }
 
       function haal(pad) {
         return fetch(pad).then(function (r) {
@@ -1375,9 +1625,19 @@
         return btoa(stukjes.join(''));
       }
 
-      return Promise.all(bronnen.map(haal)).then(function (tekst) {
-        var map = {};
-        bronnen.forEach(function (p, i) { map[p] = tekst[i]; });
+      // De pagina zelf zegt welke scripts erbij horen, in welke volgorde.
+      return haal('index.html').then(function (pagina) {
+        scripts = (pagina.match(/<script src="[^"]+"><\/script>/g) || []).map(function (s) {
+          return s.slice(13, -11);        // de tag eraf, het pad blijft over
+        });
+        bronnen = ['css/style.css'].concat(scripts);
+        totaal = bronnen.length + lijst.length + 2;
+        return Promise.all(bronnen.map(haal)).then(function (tekst) {
+          return [pagina].concat(tekst);
+        });
+      }).then(function (tekst) {
+        var map = { 'index.html': tekst[0] };
+        bronnen.forEach(function (p, i) { map[p] = tekst[i + 1]; });
 
         // audio er een voor een bij, zodat een telefoon niet alles tegelijk
         // in het geheugen hoeft te hebben
@@ -1385,18 +1645,19 @@
         var keten = Promise.resolve();
         lijst.forEach(function (d) {
           keten = keten.then(function () {
+            var sleutel = E.srcKey(d);
             return fetch(E.srcFor(d)).then(function (r) {
-              if (!r.ok) throw new Error(d.file + ': ' + r.status);
+              if (!r.ok) throw new Error(sleutel + ': ' + r.status);
               return r.arrayBuffer();
             }).then(function (buf) {
-              var ext = (d.file.split('.').pop() || '').toLowerCase();
+              var ext = (sleutel.split('?')[0].split('.').pop() || '').toLowerCase();
               var soort = d.kind === 'video'
                         ? (ext === 'webm' ? 'video/webm' : 'video/mp4')
                         : ext === 'wav' ? 'audio/wav'
                         : ext === 'ogg' ? 'audio/ogg'
                         : (ext === 'm4a' || ext === 'aac') ? 'audio/mp4'
                         : 'audio/mpeg';
-              stukken.push('  ' + JSON.stringify(d.file) +
+              stukken.push('  ' + JSON.stringify(sleutel) +
                            ': "data:' + soort + ';base64,' + base64(buf) + '"');
               stap(d.label);
             });
@@ -1412,14 +1673,15 @@
           html = html.replace('<link rel="manifest" href="manifest.webmanifest">', '');
           html = html.replace('<link rel="icon" href="favicon.svg" type="image/svg+xml">', '');
 
-          var blok = '<script>window.NO_SW = true;<\/script>\n' +
+          var blok = '<script>window.NO_SW = true; window.NOODPAKKET = true;<\/script>\n' +
             '<script>window.PRESET_SETTINGS = ' +
               JSON.stringify(S.data).replace(/</g, '\\u003c') + ';<\/script>\n' +
             '<script>window.AUDIO_DATA = {\n' + stukken.join(',\n') + '\n};<\/script>\n';
-          ['js/manifest.js', 'js/icons.js', 'js/settings.js', 'js/audio.js',
-           'js/ui.js', 'js/app.js'].forEach(function (p) {
+          scripts.forEach(function (p) {
             html = html.replace('<script src="' + p + '"><\/script>', '');
-            blok += '<script>\n' + map[p] + '\n<\/script>\n';
+            // Staat er ergens in de code een sluittag (in een tekst of een
+            // opmerking), dan zou de browser het script daar afbreken.
+            blok += '<script>\n' + map[p].replace(/<\/(script)/gi, '<\\/$1') + '\n<\/script>\n';
             // meteen na het manifest: wat er niet in zit hoort ook niet op
             // het bord. Anders staan er knoppen die nergens meer bij kunnen.
             if (p === 'js/manifest.js') {
@@ -1428,14 +1690,15 @@
             }
           });
           html = html.replace('</body>', blok + '</body>');
-          html = html.replace('<title>The Big Fat Speech Soundboard</title>',
-            '<title>The Big Fat Speech Soundboard \u2014 noodpakket</title>');
+          html = html.replace(/<title>[^<]*<\/title>/,
+            '<title>' + esc(S.data.title) + ' \u2014 noodpakket</title>');
 
           var blob = new Blob([html], { type: 'text/html' });
           var url = URL.createObjectURL(blob);
           var a = document.createElement('a');
           a.href = url;
-          a.download = 'soundboard-noodpakket' + (metLange ? '' : '-kort') + '.html';
+          var naam = S.data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bord';
+          a.download = 'soundboard-' + naam + '-noodpakket' + (metLange ? '' : '-kort') + '.html';
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -1476,9 +1739,9 @@
 
       var veld = this.field('NOODPAKKET', '', box);
       veld.appendChild(el('p', 'hint',
-        'Downloadt één HTML-bestand met de code, de letters én alle audio erin, ' +
-        'precies zoals jouw bord er nu bij staat: namen, kleuren, volgorde, gaten, ' +
-        'kopieën en uitsnedes. Geen server, geen cache, niets dat kan wegvallen — ' +
+        'Downloadt één HTML-bestand met de code, de letters én alle audio van dit ' +
+        'bord erin, precies zoals het er nu bij staat: namen, kleuren, volgorde, ' +
+        'gaten, kopieën en uitsnedes. Geen server, geen cache, niets dat kan wegvallen — ' +
         'je zet het op je telefoon en het werkt zonder enige verbinding. Ook handig ' +
         'om te delen. ALLEEN KORTE laat de lange nummers weg (behalve die waar een ' +
         'kopie op staat); die knoppen worden daar dan lege plekken.'));
@@ -1562,7 +1825,8 @@
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = 'big-fat-speech-soundboard-profiel.json';
+      var naam = S.data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bord';
+      a.download = 'soundboard-' + naam + '.json';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1581,14 +1845,15 @@
         reader.onload = function () {
           try {
             S.fromJSON(String(reader.result));
-            self.init(self.defs);
-            self.renderSettings();
-            Object.keys(S.data.sounds).forEach(function (id) {
-              E.setTrim(id, S.data.sounds[id].trimDb || 0);
-            });
           } catch (err) {
             global.alert('Dit bestand kon niet worden gelezen: ' + err.message);
+            return;
           }
+          // er kunnen andere geluiden op staan: het bord opnieuw inladen
+          global.App.reload().then(function () {
+            self.openSettings();
+            self.toast('BORD INGELEZEN');
+          });
         };
         reader.readAsText(file);
       });
@@ -1748,11 +2013,23 @@
       archBtn.type = 'button';
       archBtn.addEventListener('click', function () { self.archive(id); });
       archRow.appendChild(archBtn);
+      if (!isKopie) {
+        var wegKnop = el('button', 'btn btn--danger', 'HELEMAAL WEG');
+        wegKnop.type = 'button';
+        wegKnop.addEventListener('click', function () {
+          if (!global.confirm(d.label + ' helemaal van dit bord halen? Het geluid zelf ' +
+                              'blijft bestaan en kan er later weer op.')) return;
+          self.removeFromBoard(id);
+        });
+        archRow.appendChild(wegKnop);
+      }
       var archField = this.field('VAN HET BORD HALEN', '', archRow);
       archField.appendChild(el('p', 'hint',
-        'De knop verdwijnt van het bord maar blijft bewaard. Terugzetten kan via ' +
-        'Instellingen &rarr; Archief. Slepen kan ook: zet het slotje open en sleep de ' +
-        'knop naar de prullenbak die onderin verschijnt.'));
+        'NAAR ARCHIEF: de knop verdwijnt van het bord maar blijft bewaard, met ' +
+        'alles wat je eraan hebt ingesteld. Terugzetten kan via Instellingen ' +
+        '&rarr; Archief. Slepen kan ook: zet het slotje open en sleep de knop naar ' +
+        'de prullenbak die onderin verschijnt. HELEMAAL WEG haalt hem van dit bord ' +
+        'af; het geluid blijft bestaan en kun je er later weer op zetten.'));
       body.appendChild(archField);
 
       var plekField = this.field('PLEK IN HET ROOSTER',
@@ -2049,6 +2326,165 @@
       });
 
       this.openSheet('icon-sheet');
+    },
+
+    /* ---- borden: wisselen, maken, hernoemen, weggooien -------------- */
+    openBoardsSheet: function () {
+      this.renderBoardsSheet();
+      this.openSheet('boards-sheet');
+    },
+
+    renderBoardsSheet: function () {
+      var self = this, body = $('boards-body');
+      body.innerHTML = '';
+
+      var lijst = el('div', 'board-list');
+      B.list.forEach(function (b) {
+        var nu = b.key === B.current;
+        var n = nu ? S.data.order.filter(Boolean).length : B.count(b.key);
+        var rij = el('button', 'board-row' + (nu ? ' is-current' : ''),
+          '<span class="board-row-name">' + esc(b.title) + '</span>' +
+          '<span class="board-row-sub">' + n + (n === 1 ? ' KNOP' : ' KNOPPEN') +
+          (nu ? ' · NU OPEN' : '') + '</span>');
+        rij.type = 'button';
+        rij.setAttribute('aria-current', String(nu));
+        rij.addEventListener('click', function () {
+          if (nu) { self.closeSheets(); return; }
+          global.App.switchTo(b.key);
+        });
+        lijst.appendChild(rij);
+      });
+      body.appendChild(this.field('WISSELEN', B.list.length + (B.list.length === 1 ? ' BORD' : ' BORDEN'), lijst));
+
+      var nieuw = el('button', 'btn btn--accent', '+ NIEUW BORD');
+      nieuw.type = 'button';
+      nieuw.style.width = '100%';
+      nieuw.addEventListener('click', function () { global.App.newBoard(); });
+      var nieuwVeld = this.field('', '', nieuw);
+      nieuwVeld.appendChild(el('p', 'hint',
+        'Een bord per situatie of per persoon: elk bord heeft zijn eigen knoppen, ' +
+        'uiterlijk, timer en geluid. Wisselen duurt een paar tellen, want de ' +
+        'geluiden van het nieuwe bord worden eerst ingeladen. Wat er speelt faadt weg.'));
+      body.appendChild(nieuwVeld);
+
+      var rij = el('div', 'row');
+      var hernoem = el('button', 'btn', 'NAAM WIJZIGEN');
+      hernoem.type = 'button';
+      hernoem.addEventListener('click', function () {
+        self.ask({
+          title: 'NAAM VAN DIT BORD',
+          input: { value: S.data.title, max: 40, required: true },
+          ok: 'OPSLAAN'
+        }).then(function (r) {
+          if (!r) return;
+          S.set('title', r.value.toUpperCase());
+          self.paintBoardTitle();
+          self.renderBoardsSheet();
+        });
+      });
+      var dup = el('button', 'btn', 'DUPLICEREN');
+      dup.type = 'button';
+      dup.addEventListener('click', function () {
+        self.ask({
+          title: 'KOPIE VAN ' + S.data.title,
+          text: 'Een tweede bord met dezelfde knoppen en instellingen, dat je daarna los kunt aanpassen.',
+          input: { value: (S.data.title + ' 2').slice(0, 40), max: 40, required: true },
+          ok: 'KOPIE MAKEN'
+        }).then(function (r) {
+          if (!r) return;
+          var key = B.duplicate(B.current, r.value.toUpperCase());
+          if (key) global.App.switchTo(key);
+        });
+      });
+      var weg = el('button', 'btn btn--danger', 'VERWIJDEREN');
+      weg.type = 'button';
+      weg.addEventListener('click', function () {
+        self.ask({
+          title: S.data.title + ' VERWIJDEREN?',
+          text: 'Het bord verdwijnt van dit toestel, met de indeling en alles wat je ' +
+                'erop hebt ingesteld. De geluiden zelf blijven bestaan.',
+          ok: 'VERWIJDEREN', danger: true
+        }).then(function (r) {
+          if (r) global.App.deleteBoard(B.current);
+        });
+      });
+      rij.appendChild(hernoem); rij.appendChild(dup);
+      var dit = this.field('DIT BORD — ' + S.data.title, '', rij);
+      var rij2 = el('div', 'row');
+      rij2.style.marginTop = '8px';
+      rij2.appendChild(weg);
+      dit.appendChild(rij2);
+      body.appendChild(dit);
+    },
+
+    /* ---- een geluid op het bord zetten ------------------------------- */
+
+    /** Opent de lijst met geluiden. `slot` is de lege plek waar het moet
+        komen; zonder plek komt het op de eerste vrije. */
+    openAddSheet: function (slot) {
+      this.addSlot = (slot === undefined) ? null : slot;
+      this.renderAddSheet();
+      this.openSheet('add-sheet');
+    },
+
+    renderAddSheet: function () {
+      var self = this, body = $('add-body');
+      body.innerHTML = '';
+      $('add-title').textContent = this.addSlot !== null
+        ? 'GELUID OP PLEK ' + (this.addSlot + 1) : 'GELUID TOEVOEGEN';
+
+      var zoek = el('input', 'text-input');
+      zoek.type = 'search';
+      zoek.placeholder = 'ZOEK EEN GELUID…';
+      body.appendChild(this.field('ZOEKEN', '', zoek));
+
+      var opBord = {};
+      S.data.order.forEach(function (id) { if (id) opBord[id] = 'op'; });
+      (S.data.archived || []).forEach(function (id) { opBord[id] = 'archief'; });
+
+      var lijst = el('div', 'snd-list');
+      var rijen = [];
+      this.all.forEach(function (d) {
+        var waar = opBord[d.id];
+        var rij = self.soundRow(d, waar === 'op' ? 'STAAT AL OP DIT BORD'
+                                 : waar === 'archief' ? 'IN HET ARCHIEF — TERUGZETTEN' : '');
+        if (waar === 'op') rij.classList.add('is-on');
+        rij.addEventListener('click', function () {
+          if (waar === 'op') {
+            if (self.addSlot === null) { self.toast('STAAT AL OP DIT BORD'); return; }
+          }
+          self.addToBoard(d, self.addSlot);
+          self.closeSheets();
+          self.toast(d.label + ' STAAT OP HET BORD');
+        });
+        rijen.push({ el: rij, tekst: (d.label + ' ' + (d.file || '') + ' ' + (d.icon || '')).toLowerCase() });
+        lijst.appendChild(rij);
+      });
+      if (!rijen.length) lijst.appendChild(el('p', 'hint', 'Er zijn nog geen geluiden.'));
+      body.appendChild(this.field('GELUIDEN', this.all.length + '', lijst));
+      body.appendChild(el('p', 'hint',
+        'Een geluid kan op meerdere borden staan, elk met een eigen naam, kleur, ' +
+        'volume en uitsnede. Wat je hier aanpast geldt alleen voor dit bord.'));
+
+      zoek.addEventListener('input', function () {
+        var q = this.value.trim().toLowerCase();
+        rijen.forEach(function (r) { r.el.hidden = !!q && r.tekst.indexOf(q) < 0; });
+      });
+    },
+
+    /** Een regel in een lijst met geluiden: icoon, naam en duur. */
+    soundRow: function (d, noot) {
+      var kleur = d.color || '#00e5ff';
+      var rij = el('button', 'snd-row');
+      rij.type = 'button';
+      rij.style.setProperty('--c', kleur);
+      rij.style.setProperty('--c-rgb', hexToRgb(kleur));
+      var duur = d.duration ? (d.duration < 60 ? d.duration.toFixed(1) + ' S' : fmt(d.duration)) : '';
+      rij.innerHTML = '<span class="snd-ico">' + ICONS.svg(d.icon || 'wave') + '</span>' +
+        '<span class="snd-main"><span class="snd-name">' + esc(d.label || d.id) + '</span>' +
+        '<span class="snd-sub">' + esc([d.kind === 'video' ? 'VIDEO' : '', duur, noot || '']
+          .filter(Boolean).join(' · ')) + '</span></span>';
+      return rij;
     }
   };
 
