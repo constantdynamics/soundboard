@@ -1,11 +1,200 @@
-# THE BIG FAT SPEECH SOUNDBOARD
+# THE BIG FAT SOUNDBOARD
 
-Een soundboard voor tijdens een speech. Dark synthwave, elke knop een eigen
-neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen.
+Soundboards voor tijdens een speech, en voor elk ander moment waarop je op
+het juiste moment het juiste geluid wilt. Dark synthwave, elke knop een eigen
+neonkleur, alles vooraf ingeladen en gelijktijdig af te spelen. Eén bord per
+situatie of per persoon.
 
 **Live:** https://constantdynamics.github.io/soundboard/
 
 ---
+
+## Meerdere borden
+
+Een bord is een eigen set knoppen met een eigen indeling, uiterlijk, timer en
+geluidsinstellingen. Bijvoorbeeld SPEECH, AFSCHEID en TEAMUITJE naast elkaar.
+
+- **Kiezen bij het starten.** Het startscherm toont je borden; het laatst
+  gebruikte staat bovenaan en wordt alvast ingeladen. Eén tik start het.
+- **Wisselen tussendoor.** Tik bovenin op de naam van het bord. Wisselen duurt
+  een paar tellen: wat er speelt faadt weg en de geluiden van het nieuwe bord
+  worden ingeladen. De timer loopt door.
+- **Alleen wat nodig is in het geheugen.** Alleen de geluiden van het open
+  bord worden gedecodeerd. Staat een geluid op twee borden, dan blijft het bij
+  het wisselen gewoon staan.
+- **Een geluid, meerdere borden.** Hetzelfde geluid kan op meerdere borden
+  staan, elk met een eigen naam, kleur, volume en uitsnede.
+- **Nieuw bord:** leeg, als kopie van het bord dat open staat, of vanuit een
+  werk-sjabloon (zie hieronder). Een leeg bord opent met het slotje los; tik
+  een leeg vak aan om er een geluid neer te zetten.
+- **Uiterlijk overnemen.** In de instellingen staat UITERLIJK OVERNEMEN VAN:
+  dat neemt lettertype, palet, knopstijl, maten en kolommen van een ander bord
+  over, en laat de knoppen, de timer en het geluid met rust.
+- **Van het bord halen.** NAAR ARCHIEF bewaart een knop met alles erop en
+  eraan; HELEMAAL WEG haalt hem van dit bord. Het geluid zelf blijft bestaan.
+
+Het bord van voor er meerdere borden waren wordt bij de eerste start vanzelf
+het bord SPEECH, precies zoals het was. De oude opslag (`bfss:v1`) blijft als
+reservekopie in de browser staan. Een toestel dat de soundboard nog nooit
+heeft gezien begint leeg, met + NIEUW BORD en de uitleg hoe je een gekregen
+link opent.
+
+## Werk-sjablonen
+
+Bij **+ NIEUW BORD** staan onder BEGIN MET drie sjablonen. Elk geeft een bord
+met passende knoppen, een eigen uiterlijk en een timer. Het bord krijgt alvast
+de naam van het sjabloon, tenzij je zelf al iets had getypt.
+
+| sjabloon | knoppen | uiterlijk | timer |
+|---|---|---|---|
+| **PRESENTATIE** | GONG, BEL, AFTELLEN, TIKTAK, WHOOSH, TADAA, GOED, ZOEMER, APPLAUS | ICE, glas | 15 min |
+| **AFSCHEID** | TROMGEROFFEL, FANFARE, TADAA, PROOST, SPEELDOOS, APPLAUS, RIMSHOT, KREKELS, BEL | SUNSET, gloed | 5 min |
+| **TEAMUITJE** | FLUIT, AFTELLEN, TIKTAK, GOED, FOUT, ZOEMER, TROMGEROFFEL, TOETER, APPLAUS, KREKELS, FANFARE, WHOOSH | ARCADE, vol | 10 min |
+
+Daarna is het een gewoon bord: knoppen erbij, eraf, andere namen en een ander
+uiterlijk kunnen allemaal.
+
+### Zelfgemaakte geluiden
+
+De 18 geluiden van de sjablonen zijn niet opgenomen maar uitgerekend, uit
+sinussen en ruis, door `tools/make_template_sounds.py`. Er zit dus niets van
+een ander in, en ze mogen overal voor gebruikt en gedeeld worden. Ze staan in
+de site zelf (onder **STANDAARD** bij het toevoegen), dus ze werken voor
+iedereen, ook zonder persoonlijke link en zonder netwerk.
+
+Een paar voorbeelden van hoe ze gemaakt zijn:
+
+- **GONG:** elf deeltonen die niet op één grondtoon liggen, en de hogere
+  bouwen langzaam op na de slag. Dat geeft het aanzwellen van een echte gong.
+- **APPLAUS:** 42 klappers, elk met een eigen tempo, plek in het stereobeeld
+  en klankkleur, in een ruimte.
+- **FANFARE** en **TADAA:** koper-achtige tonen waarvan de boventonen
+  meegroeien met de sterkte, zoals bij een trompet.
+- **TIKTAK:** tien seconden tikken en een belletje aan het eind, als denktijd
+  bij een quizvraag.
+
+Het script is deterministisch: opnieuw draaien geeft precies dezelfde
+bestanden. Het meet daarna de luidheid en werkt het manifest bij. De geluiden
+krijgen `"set": "sjabloon"` mee, zodat ze bij de overstap van het oude bord
+niet ongevraagd op SPEECH belanden.
+
+```bash
+python3 tools/make_template_sounds.py
+python3 tools/make_template_sounds.py --wav /tmp/wav   # ook als wav, om te beluisteren
+```
+
+## Online: je borden overal, en delen
+
+Met een persoonlijke link staan je borden online. Dan heb je ze op elk
+toestel, kun je geluiden uploaden en kun je een bord delen. Zonder link werkt
+alles zoals eerst, alleen op dat ene toestel.
+
+### Je persoonlijke link
+
+Er zijn geen accounts en geen wachtwoorden. Je krijgt één link,
+`…/soundboard/#ik=…`, en die link bén jij. Open hem op een toestel en al je
+borden staan er. De app haalt hem na het openen meteen uit de adresbalk, zodat
+hij niet in een schermafbeelding of in de geschiedenis blijft hangen.
+
+- **Geef hem aan niemand.** Wie hem heeft, kan alles wat jij kunt.
+- **Bewaar hem goed**, bijvoorbeeld in je wachtwoordbeheerder. De database
+  kent alleen een vingerafdruk ervan (SHA-256), dus niemand kan hem voor je
+  terughalen. Op een toestel waar je hem al hebt geopend staat hij onder
+  **Instellingen → JIJ → JOUW PERSOONLIJKE LINK**.
+- **AFMELDEN** haalt hem van dat ene toestel; je borden blijven online.
+- Stonden er al borden op het toestel, dan gaan die bij het eerste openen
+  vanzelf online. Staat er online al een eigen bord met dezelfde naam (vanaf
+  een ander toestel), dan vraagt de app eerst of het er als tweede bord bij
+  moet, of van dit toestel weg kan.
+
+### Meedoen gaat met een uitnodiging
+
+Borden maken en geluiden uploaden kan alleen wie is uitgenodigd. De beheerder
+maakt onder **Instellingen → UITNODIGEN** een uitnodigingslink, die 30 dagen
+geldig is en één keer werkt. Wie hem opent kiest een naam en krijgt een eigen
+persoonlijke link. **WIE DOEN ER MEE** laat zien wie er meedoen en hoeveel
+opslag ze gebruiken (standaard 200 MB per persoon).
+
+### Een bord delen
+
+Elk online bord heeft twee links. Je vindt ze door bovenin op de naam van het
+bord te tikken, onder **DELEN**:
+
+| | wat de ander ermee kan |
+|---|---|
+| **SPEEL-link** | het bord openen en de knoppen gebruiken, verder niets |
+| **BEWERK-link** | ook knoppen toevoegen, verplaatsen, hernoemen en geluiden uploaden |
+
+Wie zo'n link krijgt heeft geen uitnodiging of persoonlijke link nodig. Een
+bord staat nergens in een lijst: vinden kan alleen wie de link heeft.
+**INTREKKEN** maakt een nieuwe link. Wie de oude had, krijgt bij de volgende
+poging te horen dat hij is ingetrokken.
+
+**EIGEN KOPIE** maakt van een bord dat je kreeg een bord van jezelf (daarvoor
+heb je wel een persoonlijke link nodig). Privé-geluiden van de maker gaan niet
+mee: die knoppen worden lege plekken.
+
+Opent iemand een link terwijl de soundboard al openstaat, dan gaat hij meteen
+naar dat bord.
+
+### Samen aan één bord
+
+Wijzigingen gaan per onderdeel naar de database: een andere naam op één knop
+verstuurt alleen die knop. Past iemand anders hetzelfde bord aan, dan
+verandert er bij jou níets vanzelf. Onderin verschijnt **WIJZIGINGEN VAN …**
+met de vraag of je wilt bijwerken. Pas na je tik komt het binnen. Wat jij nog
+onderweg had gaat eerst de deur uit en blijft staan. Het mastervolume hoort bij
+het toestel en reist nooit mee.
+
+Zonder netwerk werk je door met wat er bewaard is. Wat je dan aanpast, gaat
+de deur uit zodra er weer verbinding is.
+
+### Geluiden uploaden
+
+Zet het slotje open, tik een leeg vak of **+** aan en kies bij **UPLOADEN**
+een bestand. Audio en video mogen allebei; van een video wordt alleen het
+geluid bewaard.
+
+1. **Knippen.** Je ziet de golfvorm met twee grepen. **STILTE ERAF** zoekt de
+   randen zelf op, **BELUISTEREN** speelt het gekozen stuk. Alleen dat stuk
+   wordt opgeslagen.
+2. **Meten.** De luidheid wordt in de browser gemeten, met dezelfde
+   EBU R128-rekensom als `tools/analyze_loudness.py`. Op de 29 geluiden van
+   het eerste bord komen die twee op 0,000 dB na overeen.
+3. **Omzetten.** Het stuk wordt in de browser een mp3, mono als links en
+   rechts gelijk zijn. Dat gebeurt in een aparte worker, zodat het scherm
+   blijft reageren.
+4. **Privé of gedeeld.** Een privé-geluid vind alleen jij in je bibliotheek,
+   maar het is wel te horen op elk bord waar je het neerzet. Een gedeeld
+   geluid vinden anderen onder **GEDEELD DOOR ANDEREN**. Omzetten kan altijd,
+   via **Instellingen → JIJ → MIJN GELUIDEN**.
+
+Wie uploadt met een BEWERK-link en zonder persoonlijke link, uploadt voor de
+maker van het bord: het geluid komt privé in diens bibliotheek en telt voor
+diens opslag.
+
+De 29 geluiden en de video van het eerste bord staan ook online, als
+privé-geluiden van de beheerder.
+
+### Hoe het in elkaar zit
+
+- **Database:** Supabase, tabellen `sb_*`, schema in `supabase/soundboard.sql`.
+  De tabellen zijn dicht voor de buitenwereld. Alles loopt via functies
+  (`sb_board_get`, `sb_board_patch`, …) die zelf de persoonlijke link of de
+  bordlink controleren. Van persoonlijke links wordt alleen een vingerafdruk
+  bewaard.
+- **Bestanden:** een openbare bucket met onraadbare namen. Uploaden kan alleen
+  naar een pad dat de database eerst heeft uitgedeeld, tot een vaste grootte.
+- **`js/config.js`** bevat de publishable key. Die hoort in een webpagina te
+  staan en geeft alleen toegang tot die functies.
+- **Offline:** online geluiden gaan net als die van de site zelf in de cache
+  van de service worker, ook met Range-verzoeken voor lange nummers.
+- **Wakker houden:** een Supabase-project op het gratis plan gaat na een week
+  zonder verkeer op pauze. `.github/workflows/wakker.yml` doet daarom elke
+  ochtend één klein verzoek (`sb_ping`). GitHub draait zo'n schema alleen vanaf
+  de standaardbranch, en zet het in een openbare repo stil na 60 dagen zonder
+  activiteit. Onder **Actions** zie je of het loopt, en daar kun je het ook met
+  de hand starten.
 
 ## Wat het doet
 
@@ -362,10 +551,9 @@ evenveel geheugen als één.
 Een kopie speelt altijd uit het geheugen, ook als het origineel gestreamd
 wordt. Een fragment is kort en moet direct klinken.
 
-Kopieën staan in je instellingen, niet in het manifest. Ze reizen mee in je
-geëxporteerde profiel, maar niet naar een ander apparaat of naar het
-noodpakket. Wil je ze definitief maken, laat de tijdstippen dan als losse
-bestanden uitknippen.
+Kopieën horen bij het bord, niet bij het manifest. Ze reizen mee in je
+geëxporteerde profiel en in het noodpakket, en bij een online bord ook naar
+je andere toestellen en naar iedereen met wie je het bord deelt.
 
 ## Wegdrukken
 
@@ -439,6 +627,24 @@ Gemeten waarden:
 | PIAN DI CASCINA 1 | 10.6s | -17.83 | +1.83 dB |
 | 11 STEDEN | 13.5s | -17.11 | +1.11 dB |
 | REAL LIFE (video) | 29.1s | -16.16 (na loudnorm in het bestand) | +0.16 dB |
+| AFTELLEN (sjabloon) | 4.3s | -7.5 | -8.50 dB |
+| APPLAUS (sjabloon) | 5.2s | -14.68 | -1.32 dB |
+| BEL (sjabloon) | 3.2s | -12.33 | -3.67 dB |
+| FANFARE (sjabloon) | 3.8s | -13.52 | -2.48 dB |
+| FLUIT (sjabloon) | 2.0s | -5.63 | -10.37 dB |
+| FOUT (sjabloon) | 3.7s | -10.59 | -5.41 dB |
+| GOED (sjabloon) | 1.8s | -12.94 | -3.06 dB |
+| GONG (sjabloon) | 7.9s | -15.66 | -0.34 dB |
+| KREKELS (sjabloon) | 6.4s | -14.28 | -1.72 dB |
+| PROOST (sjabloon) | 2.4s | -12.31 | -3.69 dB |
+| RIMSHOT (sjabloon) | 2.7s | -17.41 | +1.41 dB |
+| SPEELDOOS (sjabloon) | 6.1s | -12.19 | -3.81 dB |
+| TADAA (sjabloon) | 3.0s | -13.11 | -2.89 dB |
+| TIKTAK (sjabloon) | 11.1s | -19.72 | +3.72 dB |
+| TOETER (sjabloon) | 2.5s | -14.5 | -1.50 dB |
+| TROMGEROFFEL (sjabloon) | 6.0s | -19.36 | +3.36 dB |
+| WHOOSH (sjabloon) | 1.6s | -16.62 | +0.62 dB |
+| ZOEMER (sjabloon) | 1.6s | -12.69 | -3.31 dB |
 
 ## Opbouw
 
@@ -449,19 +655,34 @@ css/fonts.css           de lettertypes, uit fonts/ in plaats van bij Google
 fonts/                  de woff2-bestanden (latijnse uitsnede, 126 kB totaal)
 video/                  de video's (mp4, h264 + aac)
 js/icons.js             iconenbibliotheek (inline SVG) + suggesties op naam
-js/settings.js          presets, opslag in de browser, export/import
-js/audio.js             Web Audio: vooraf laden, afspelen, faden, limiter
+js/settings.js          presets en de regels van één bord, export/import
+js/boards.js            welke borden er zijn en waar ze bewaard worden
+js/templates.js         de werk-sjablonen PRESENTATIE, AFSCHEID en TEAMUITJE
+js/config.js            adres en publieke sleutel van de online opslag
+js/cloud.js             praten met Supabase: functies, uploaden, persoonlijke link
+js/library.js           de bibliotheek: standaard, eigen en gedeelde geluiden
+js/sync.js              wijzigingen per onderdeel versturen, melding bij die van een ander
+js/audio.js             Web Audio: inladen per bord, afspelen, faden, limiter
+js/loudness.js          EBU R128-meting in de browser
+js/upload.js            uploaden: knippen, meten, omzetten, opslaan
+js/mp3-worker.js        mp3 maken in een aparte worker
+js/vendor/lame.min.js   lamejs 1.2.1, de mp3-encoder (LGPL-3.0, ongewijzigd)
 js/ui.js                knoppenraster, timer, panelen, slepen
-js/app.js               opstarten en ontgrendelen van het geluid
+js/ui-online.js         borden, delen, bibliotheek, uitnodigen, alleen spelen
+js/app.js               opstarten, links, ontgrendelen van het geluid, wisselen
 sw.js                   service worker voor offline gebruik
 data/sounds.json        de knoppen: naam, icoon, kleur, gemeten gain
 data/loudness.json      ruwe meetresultaten
-tools/                  de meet- en manifestscripts
+supabase/soundboard.sql het schema van de online opslag
+tools/                  de meet- en manifestscripts, en de maker van de sjabloongeluiden
+.github/workflows/      publiceren op GitHub Pages, en de online opslag wakker houden
 ```
 
-Geen build-stap, geen afhankelijkheden: het is gewone HTML, CSS en JavaScript.
-Ook de lettertypes komen van de site zelf en niet van Google, zodat het bord er
-zonder netwerk uitziet zoals het hoort.
+Geen build-stap: het is gewone HTML, CSS en JavaScript. De enige code van
+buiten is [lamejs](https://github.com/zhuker/lamejs) voor het maken van mp3's
+bij het uploaden. Die staat ongewijzigd in `js/vendor/`, met zijn licentie
+(LGPL-3.0). Ook de lettertypes komen van de site zelf en niet van Google, zodat
+het bord er zonder netwerk uitziet zoals het hoort.
 
 ## Publiceren
 

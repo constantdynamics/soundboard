@@ -1,12 +1,12 @@
 /* ------------------------------------------------------------------
-   THE BIG FAT SPEECH SOUNDBOARD — instellingen & presets
-   Alles wordt automatisch bewaard in de browser (localStorage) en is
-   te exporteren/importeren als JSON-bestand.
+   THE BIG FAT SOUNDBOARD — instellingen & presets
+   Settings.data is het bord dat nu open staat: de knoppen, hun volgorde
+   en alles wat je aan het uiterlijk en het geluid hebt ingesteld. Waar
+   het bewaard wordt regelt js/boards.js; hier staan de presets en de
+   regels om een bord heel te houden. Te exporteren/importeren als JSON.
    ------------------------------------------------------------------ */
 (function (global) {
   'use strict';
-
-  var KEY = 'bfss:v1';
 
   /* ---- presets ------------------------------------------------- */
 
@@ -137,9 +137,15 @@
     { id: 1200, name: '20 MIN' }
   ];
 
+  /* Wat "het uiterlijk" van een bord is, voor UITERLIJK OVERNEMEN. De
+     kleur per knop hoort er niet bij: een ander palet zet die opnieuw. */
+  var LOOK = ['font', 'fontScale', 'palette', 'fill', 'border', 'gap', 'radius',
+              'size', 'columns', 'showLabels'];
+
   function defaults() {
     return {
       version: 1,
+      title: 'NIEUW BORD',
       font: 'orbitron',
       fontScale: 1,
       palette: 'miami',
@@ -168,35 +174,25 @@
     sizeFor: sizeFor,
     BORDERS: BORDERS, GAPS: GAPS, RADII: RADII, DUCKS: DUCKS,
     COLUMNS: COLUMNS, FADES: FADES, TIMER_TARGETS: TIMER_TARGETS,
+    LOOK: LOOK,
+    defaults: defaults,
     data: defaults(),
     onchange: null,
+    onpersist: null,     // wordt door de borden ingevuld: waar dit bord heen moet
 
     find: function (list, id) {
       for (var i = 0; i < list.length; i++) if (String(list[i].id) === String(id)) return list[i];
       return list[0];
     },
 
-    load: function () {
-      var raw = null;
-      try { raw = global.localStorage.getItem(KEY); }
-      catch (e) { console.warn('Instellingen konden niet worden gelezen:', e); }
-
-      if (raw) {
-        try { this.data = this.merge(defaults(), JSON.parse(raw)); }
-        catch (e) { console.warn('Instellingen waren onleesbaar:', e); }
-      } else if (global.PRESET_SETTINGS) {
-        // Een geëxporteerd bord dat in de pagina is ingebakken (noodpakket).
-        // Alleen bij een schone start: wat je hier daarna aanpast blijft van
-        // jou en wordt niet door de ingebakken versie overschreven.
-        try {
-          this.data = this.merge(defaults(), global.PRESET_SETTINGS);
-          this.save();
-        } catch (e) { console.warn('Ingebakken bord was onleesbaar:', e); }
-      }
+    /** Zet een bord open. Wat er ontbreekt vult de standaard aan. */
+    use: function (doc) {
+      this.data = this.merge(defaults(), doc || {});
       return this.data;
     },
 
     merge: function (base, saved) {
+      saved = saved || {};
       Object.keys(base).forEach(function (k) {
         if (saved[k] === undefined || saved[k] === null) return;
         if (k === 'sounds' && typeof saved[k] === 'object') base[k] = saved[k];
@@ -212,15 +208,12 @@
       if (typeof d.size === 'string') d.size = SIZE_NAMEN[d.size] || 104;
       d.size = Math.max(SIZE_MIN, Math.min(SIZE_MAX, Math.round(Number(d.size) || 104)));
       d.fontScale = Math.max(FONT_MIN, Math.min(FONT_MAX, Number(d.fontScale) || 1));
+      d.title = String(d.title || '').trim().slice(0, 40) || 'NAAMLOOS BORD';
       return d;
     },
 
     save: function () {
-      try {
-        global.localStorage.setItem(KEY, JSON.stringify(this.data));
-      } catch (e) {
-        console.warn('Instellingen konden niet worden bewaard:', e);
-      }
+      if (this.onpersist) this.onpersist(this.data);
       if (this.onchange) this.onchange(this.data);
     },
 
@@ -237,26 +230,45 @@
       this.save();
     },
 
+    /** Uiterlijk en gedrag van dit bord terug naar de standaard. De knoppen
+        zelf blijven staan: de naam van het bord, de volgorde, het archief,
+        de kopieën en wat je per knop hebt ingesteld. Alleen de eigen kleur
+        per knop gaat weg, want die hoort bij het palet. */
     reset: function () {
-      this.data = defaults();
-      try { global.localStorage.removeItem(KEY); } catch (e) {}
-      if (this.onchange) this.onchange(this.data);
+      var oud = this.data, d = defaults();
+      ['title', 'order', 'archived', 'clones', 'sounds'].forEach(function (k) { d[k] = oud[k]; });
+      Object.keys(d.sounds).forEach(function (id) { delete d.sounds[id].color; });
+      this.data = this.normalize(d);
+      this.save();
+    },
+
+    /** Neemt het uiterlijk van een ander bord over. */
+    copyLook: function (from) {
+      var self = this;
+      from = this.merge(defaults(), from);
+      LOOK.forEach(function (k) { self.data[k] = from[k]; });
+      Object.keys(this.data.sounds).forEach(function (id) { delete self.data.sounds[id].color; });
+      this.save();
     },
 
     /* ---- export / import ---------------------------------------- */
     toJSON: function () {
       return JSON.stringify({
-        app: 'the-big-fat-speech-soundboard',
+        app: 'the-big-fat-soundboard',
         exported: new Date().toISOString(),
         settings: this.data
       }, null, 2);
     },
 
+    /** Leest een geëxporteerd bord in, over het bord dat nu open staat. */
     fromJSON: function (text) {
       var parsed = JSON.parse(text);
       var incoming = parsed.settings || parsed;
       if (!incoming || typeof incoming !== 'object') throw new Error('Onbekend bestandsformaat');
+      var titel = this.data.title;
       this.data = this.merge(defaults(), incoming);
+      // een oud profiel had nog geen naam; dan houdt het bord de zijne
+      if (!incoming.title) this.data.title = titel;
       this.save();
       return this.data;
     }

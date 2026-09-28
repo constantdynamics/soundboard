@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The Big Fat Speech Soundboard</title>
-<meta name="description" content="Soundboard voor speeches: alle geluiden vooraf ingeladen, gelijktijdig afspeelbaar, in dark synthwave.">
+<title>The Big Fat Soundboard</title>
+<meta name="description" content="Soundboards voor speeches en andere momenten: meerdere borden, alle geluiden vooraf ingeladen, gelijktijdig afspeelbaar, in dark synthwave.">
 <meta name="theme-color" content="#0a0118">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -23,8 +23,11 @@
 
 <header class="topbar">
   <h1 class="brand">
-    <span class="brand-sm">THE BIG FAT</span>
-    <span class="brand-lg">SPEECH SOUNDBOARD</span>
+    <button class="brand-btn" id="board-btn" type="button" aria-label="Borden: wisselen of een nieuw bord maken">
+      <span class="brand-sm">THE BIG FAT SOUNDBOARD</span>
+      <span class="brand-lg"><span id="board-title">SPEECH</span><svg class="brand-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></span>
+    </button>
   </h1>
 
   <div class="timer" id="timer" data-state="idle">
@@ -42,14 +45,21 @@
   </div>
 </header>
 
-<p class="edit-hint" id="edit-hint" hidden>
-  Sleep een knop naar een <b>streepjesvak</b> om hem te verplaatsen en zijn oude
-  plek leeg te laten. Op een andere knop loslaten wisselt de twee om.
-  Tik een knop aan voor naam, icoon, kleur en volume.
-</p>
+<div class="edit-hint" id="edit-hint" hidden>
+  <p>
+    Sleep een knop naar een <b>streepjesvak</b> om hem te verplaatsen en zijn oude
+    plek leeg te laten. Op een andere knop loslaten wisselt de twee om.
+    Tik een knop aan voor naam, icoon, kleur en volume, en een leeg vak om er een
+    geluid neer te zetten.
+  </p>
+  <button class="btn btn--accent edit-add" id="edit-add" type="button">+ GELUID TOEVOEGEN</button>
+</div>
 
 <main class="board" id="board" aria-label="Geluidsknoppen"></main>
-<p class="board-empty" id="board-empty" hidden>Geen geluiden gevonden.</p>
+<div class="board-empty" id="board-empty" hidden>
+  <p>Dit bord is nog leeg.</p>
+  <button class="btn btn--accent" id="board-empty-add" type="button">+ GELUIDEN TOEVOEGEN</button>
+</div>
 
 <nav class="dock" id="dock" aria-label="Bediening">
   <button class="dock-stop" id="btn-stop" type="button">
@@ -114,6 +124,13 @@
   <span>NAAR ARCHIEF</span>
 </div>
 
+<!-- Een ander heeft het bord aangepast: zelf kiezen wanneer je bijwerkt -->
+<div class="remote-bar" id="remote-bar" hidden role="status" aria-live="polite">
+  <span id="remote-text">WIJZIGINGEN VAN IEMAND ANDERS</span>
+  <button type="button" id="remote-yes">BIJWERKEN</button>
+  <button type="button" id="remote-no" aria-label="Later">&times;</button>
+</div>
+
 <div class="update-bar" id="update-bar" hidden>
   <span>NIEUWE VERSIE KLAAR</span>
   <button type="button" id="update-now">VERNIEUWEN</button>
@@ -164,10 +181,28 @@
 <!-- Instellingenpaneel -->
 <section class="sheet sheet--settings" id="settings-panel" hidden aria-label="Instellingen">
   <header class="sheet-head">
-    <h2>INSTELLINGEN</h2>
+    <h2 id="settings-title">INSTELLINGEN</h2>
     <button class="sheet-close" id="settings-close" type="button" aria-label="Sluiten">&times;</button>
   </header>
   <div class="sheet-body" id="settings-body"></div>
+</section>
+
+<!-- Borden: wisselen, nieuw, hernoemen -->
+<section class="sheet sheet--boards" id="boards-sheet" hidden aria-label="Borden">
+  <header class="sheet-head">
+    <h2>BORDEN</h2>
+    <button class="sheet-close" id="boards-close" type="button" aria-label="Sluiten">&times;</button>
+  </header>
+  <div class="sheet-body" id="boards-body"></div>
+</section>
+
+<!-- Een geluid op het bord zetten -->
+<section class="sheet sheet--add" id="add-sheet" hidden aria-label="Geluid toevoegen">
+  <header class="sheet-head">
+    <h2 id="add-title">GELUID TOEVOEGEN</h2>
+    <button class="sheet-close" id="add-close" type="button" aria-label="Sluiten">&times;</button>
+  </header>
+  <div class="sheet-body" id="add-body"></div>
 </section>
 
 <!-- Knop bewerken -->
@@ -188,27 +223,50 @@
   <div class="sheet-body" id="icon-body"></div>
 </section>
 
-<!-- Startscherm: één tik ontgrendelt het geluid én laadt alles in -->
+<!-- Een korte melding onderin -->
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+<!-- Startscherm: een tik op een bord ontgrendelt het geluid én laadt dat bord in -->
 <div class="splash" id="splash">
   <div class="splash-inner">
     <h2 class="splash-title">
       <span class="brand-sm">THE BIG FAT</span>
-      <span class="brand-lg">SPEECH SOUNDBOARD</span>
+      <span class="brand-lg">SOUNDBOARD</span>
     </h2>
-    <button class="splash-btn" id="splash-btn" type="button">
-      <span id="splash-btn-text">TIK OM TE STARTEN</span>
-    </button>
+    <div class="splash-boards" id="splash-boards"></div>
+    <p class="splash-loading" id="splash-loading" hidden></p>
     <div class="splash-bar"><div class="splash-bar-fill" id="splash-bar"></div></div>
-    <p class="splash-note" id="splash-note">Alle geluiden worden vooraf ingeladen, zodat er tijdens je speech geen vertraging is.</p>
+    <p class="splash-note" id="splash-note">Alle geluiden van een bord worden vooraf ingeladen, zodat er tijdens je optreden geen vertraging is.</p>
     <button class="splash-rescue" id="splash-rescue" type="button" hidden>ALLES OPNIEUW OPHALEN</button>
+  </div>
+</div>
+
+<!-- Een vraag tussendoor: naam van een bord, zeker weten, enzovoort -->
+<div class="dialog" id="dialog" hidden>
+  <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+    <p class="dialog-title" id="dialog-title"></p>
+    <div class="dialog-body" id="dialog-body"></div>
+    <div class="row">
+      <button class="btn" id="dialog-no" type="button">ANNULEREN</button>
+      <button class="btn btn--accent" id="dialog-yes" type="button">OK</button>
+    </div>
   </div>
 </div>
 
 <script src="js/manifest.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/library.js"></script>
+<script src="js/boards.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/sync.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/loudness.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/ui-online.js"></script>
+<script src="js/upload.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

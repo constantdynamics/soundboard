@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
-   THE BIG FAT SPEECH SOUNDBOARD — iconenbibliotheek
+   THE BIG FAT SOUNDBOARD — iconenbibliotheek
    Alle iconen zijn inline SVG (24x24), zodat er niets van buitenaf
    geladen hoeft te worden en ze altijd direct scherp zijn.
    ------------------------------------------------------------------ */

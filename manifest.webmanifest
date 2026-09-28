@@ -1,7 +1,7 @@
 {
-  "name": "The Big Fat Speech Soundboard",
+  "name": "The Big Fat Soundboard",
   "short_name": "Soundboard",
-  "description": "Soundboard voor speeches: alles vooraf ingeladen, gelijktijdig afspeelbaar, in dark synthwave.",
+  "description": "Soundboards voor speeches en andere momenten: meerdere borden, alles vooraf ingeladen, gelijktijdig afspeelbaar, in dark synthwave.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
